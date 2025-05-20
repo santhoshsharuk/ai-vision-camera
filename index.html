@@ -1,23 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mobile Camera Access</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera Interaction App</title>
   <style>
     body {
       font-family: sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 20px;
-      min-height: 100vh;
+      gap: 16px;
+      padding: 16px;
       background-color: #f0f0f0;
-      padding: 10px;
+      min-height: 100vh;
     }
 
-    video {
+    #videoFeed {
       width: 100%;
       max-width: 600px;
       border-radius: 8px;
@@ -26,10 +25,10 @@
     }
 
     button {
-      padding: 12px 20px;
+      padding: 12px;
       font-size: 16px;
-      border: none;
       border-radius: 4px;
+      border: none;
       color: white;
       cursor: pointer;
     }
@@ -37,69 +36,79 @@
     .start { background-color: #28a745; }
     .stop { background-color: #dc3545; }
     .switch { background-color: #007bff; }
+
+    textarea {
+      width: 100%;
+      max-width: 600px;
+      padding: 8px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
-
-  <h2>Mobile Camera Access Test</h2>
+  <h2>Camera Interaction App</h2>
 
   <video id="videoFeed" autoplay playsinline muted></video>
 
+  <textarea id="responseText" readonly placeholder="Server response..."></textarea>
+
   <div>
-    <button id="startBtn" class="start">Start Camera</button>
-    <button id="stopBtn" class="stop">Stop Camera</button>
-    <button id="switchBtn" class="switch">Switch Camera</button>
+    <button id="startButton" class="start">Start</button>
+    <button id="switchCamera" class="switch">Switch Camera</button>
   </div>
 
   <script>
+    let stream;
+    let facingMode = 'environment';
     const video = document.getElementById('videoFeed');
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const switchBtn = document.getElementById('switchBtn');
+    const responseText = document.getElementById('responseText');
+    const startButton = document.getElementById('startButton');
+    const switchCameraBtn = document.getElementById('switchCamera');
 
-    let stream = null;
-    let facingMode = 'environment'; // Start with back camera
+    async function initCamera() {
+      if (stream) stream.getTracks().forEach(track => track.stop());
 
-    async function startCamera() {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-
-      const constraints = {
-        audio: false,
-        video: { facingMode }
-      };
+      const constraints = { video: { facingMode }, audio: false };
 
       try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
+        responseText.value = `Camera initialized (${facingMode}).`;
       } catch (err) {
-        alert(`Error accessing camera: ${err.message}`);
-      }
-    }
-
-    function stopCamera() {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-        video.srcObject = null;
+        responseText.value = `Camera Error: ${err.message}`;
+        alert(responseText.value);
       }
     }
 
     function switchCamera() {
-      facingMode = facingMode === 'environment' ? 'user' : 'environment';
-      startCamera();
+      facingMode = (facingMode === 'environment') ? 'user' : 'environment';
+      initCamera();
     }
 
-    startBtn.addEventListener('click', startCamera);
-    stopBtn.addEventListener('click', stopCamera);
-    switchBtn.addEventListener('click', switchCamera);
+    startButton.onclick = () => {
+      if (startButton.classList.contains('start')) {
+        initCamera();
+        startButton.textContent = 'Stop';
+        startButton.classList.replace('start', 'stop');
+      } else {
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        startButton.textContent = 'Start';
+        startButton.classList.replace('stop', 'start');
+        responseText.value = 'Camera stopped.';
+      }
+    };
 
-    // Auto-start camera on page load
-    window.addEventListener('DOMContentLoaded', () => {
-      startCamera();
+    switchCameraBtn.onclick = switchCamera;
+
+    window.addEventListener('beforeunload', () => {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      responseText.value = 'Click "Start" to activate camera.';
     });
   </script>
-
 </body>
 </html>
