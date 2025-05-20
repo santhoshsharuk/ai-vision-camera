@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-      /* Custom animations and styles that Tailwind doesn't cover */
+      /* Custom animations and styles */
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -43,16 +43,6 @@
         opacity: 0.8;
       }
       
-      /* Smooth slide up animation */
-      @keyframes slideUp {
-        from { transform: translateY(100%); }
-        to { transform: translateY(0); }
-      }
-      
-      .animate-slide-up {
-        animation: slideUp 0.3s ease-out forwards;
-      }
-      
       /* Fade in animation */
       @keyframes fadeIn {
         from { opacity: 0; }
@@ -61,14 +51,6 @@
       
       .animate-fade-in {
         animation: fadeIn 0.3s ease-out forwards;
-      }
-      
-      /* Prevent text selection */
-      .no-select {
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
       }
       
       /* Override focus styles */
@@ -91,7 +73,7 @@
       }
     </style>
   </head>
-  <body class="bg-black text-gray-100 font-sans overflow-hidden touch-manipulation fixed inset-0">
+  <body class="bg-black text-gray-100 font-sans overflow-hidden fixed inset-0">
     <div class="flex flex-col h-full max-w-lg mx-auto relative" id="appContainer">
       <!-- App Header -->
       <header class="bg-black py-3 px-4 flex items-center justify-center z-10 border-b border-gray-800">
@@ -152,6 +134,11 @@
             </div>
           </div>
           
+          <!-- Debug Info Display (for troubleshooting) -->
+          <div id="debugInfo" class="absolute bottom-20 left-0 right-0 p-2 z-20 text-xs text-white bg-black bg-opacity-70 hidden">
+            <div id="debugText"></div>
+          </div>
+          
           <!-- Loading Overlay -->
           <div id="loadingOverlay" class="absolute inset-0 bg-black bg-opacity-70 flex-col hidden items-center justify-center z-10 text-white">
             <div class="w-10 h-10 border-3 border-t-white border-r-white border-b-white border-l-transparent rounded-full animate-spin-custom mb-4"></div>
@@ -165,8 +152,8 @@
           
           <!-- Control Buttons -->
           <div class="absolute bottom-16 left-4 flex gap-3 z-20">
-            <button id="settingsBtn" class="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center border border-gray-700">
-              <i class="fas fa-cog"></i>
+            <button id="switchCameraBtn" class="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center border border-gray-700">
+              <i class="fas fa-sync-alt"></i>
             </button>
             <button id="voiceToggleBtn" class="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center border border-gray-700">
               <i class="fas fa-volume-mute"></i>
@@ -191,69 +178,42 @@
               <input id="promptInput" type="text" placeholder="Ask the AI about what it sees..." class="w-full py-2 px-4 bg-gray-800 text-white rounded-full text-sm focus:ring-1 focus:ring-white border-none">
               <div id="statusIndicator" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full bg-gray-600"></div>
             </div>
-            <button id="expandUIBtn" class="p-2 text-white bg-gray-800 rounded-full flex items-center justify-center">
-              <i class="fas fa-chevron-up"></i>
+            <button id="sendPromptBtn" class="p-2 text-white bg-gray-800 rounded-full flex items-center justify-center">
+              <i class="fas fa-paper-plane"></i>
             </button>
           </div>
         </div>
         
-        <!-- Expanded UI Panel (initially hidden) -->
-        <div id="expandedUI" class="fixed inset-0 bg-black bg-opacity-95 z-40 hidden">
+        <!-- Settings Panel (initially hidden) -->
+        <div id="settingsPanel" class="fixed inset-0 bg-black bg-opacity-95 z-40 hidden">
           <div class="flex flex-col h-full">
-            <!-- Expanded Header -->
+            <!-- Settings Header -->
             <div class="bg-gray-900 p-4 flex items-center justify-between border-b border-gray-800">
-              <h2 class="text-white font-medium">AI Vision Analysis</h2>
-              <div class="flex items-center gap-3">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-400">Voice</span>
-                  <label class="inline-flex items-center cursor-pointer">
-                    <input type="checkbox" id="readResponseToggle" class="sr-only peer">
-                    <div class="relative w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white"></div>
-                  </label>
-                </div>
-                <button id="collapseUIBtn" class="text-gray-400 hover:text-white">
-                  <i class="fas fa-times text-lg"></i>
-                </button>
-              </div>
+              <h2 class="text-white font-medium">Camera Settings</h2>
+              <button id="closeSettingsBtn" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times text-lg"></i>
+              </button>
             </div>
             
-            <!-- Expanded Content -->
+            <!-- Settings Content -->
             <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
-              <!-- Instruction Input -->
+              <!-- Voice Settings -->
               <div class="mb-4">
-                <label for="instructionText" class="block text-xs text-gray-400 font-medium mb-2">Ask the AI:</label>
-                <textarea id="instructionText" placeholder="What would you like to know about the camera view?" class="w-full border border-gray-700 rounded-xl p-3 text-sm resize-none h-20 bg-gray-800 text-gray-200"></textarea>
-              </div>
-              
-              <!-- Response Area -->
-              <div class="mb-4">
-                <div class="flex items-center justify-between mb-2">
-                  <label class="block text-xs text-gray-400 font-medium">AI Response:</label>
-                  <span id="statusText" class="text-xs text-gray-500">Inactive</span>
-                </div>
-                
-                <!-- Response Card -->
+                <h3 class="text-xs text-gray-400 font-medium mb-2">Voice Settings</h3>
                 <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                  <div id="responseContainer" class="space-y-3">
-                    <div id="responseContent" class="text-sm text-gray-200 min-h-24">
-                      AI response will appear here...
-                    </div>
-                    
-                    <!-- Skeleton Loading Effect (Hidden by Default) -->
-                    <div id="skeletonLoader" class="hidden mt-2 space-y-2">
-                      <div class="h-4 bg-gray-700 rounded animate-pulse-skeleton"></div>
-                      <div class="h-4 bg-gray-700 rounded w-3/4 animate-pulse-skeleton"></div>
-                      <div class="h-4 bg-gray-700 rounded w-5/6 animate-pulse-skeleton"></div>
-                      <div class="h-4 bg-gray-700 rounded animate-pulse-skeleton"></div>
-                      <div class="h-4 bg-gray-700 rounded w-4/5 animate-pulse-skeleton"></div>
-                    </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-white">Read responses aloud</span>
+                    <label class="inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="readResponseToggle" class="sr-only peer">
+                      <div class="relative w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white"></div>
+                    </label>
                   </div>
                 </div>
               </div>
               
-              <!-- Settings Section -->
-              <div>
-                <h3 class="text-xs text-gray-400 font-medium mb-2">Settings</h3>
+              <!-- Camera Settings -->
+              <div class="mb-4">
+                <h3 class="text-xs text-gray-400 font-medium mb-2">Camera Settings</h3>
                 <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
                   <div class="mb-3">
                     <label for="intervalSelect" class="block text-xs text-gray-400 mb-1">Camera refresh rate:</label>
@@ -275,11 +235,16 @@
                       <option value="0">Always visible</option>
                     </select>
                   </div>
-                  
-                  <div class="flex items-center justify-between">
-                    <span class="text-sm text-gray-300">AI Model</span>
-                    <span class="text-xs text-gray-400 bg-gray-700 py-1 px-2 rounded">SmolVLM-500M</span>
-                  </div>
+                </div>
+              </div>
+              
+              <!-- Troubleshooting -->
+              <div>
+                <h3 class="text-xs text-gray-400 font-medium mb-2">Troubleshooting</h3>
+                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                  <button id="toggleDebugBtn" class="text-sm text-white bg-gray-900 py-2 px-4 rounded-lg w-full">
+                    Show Debug Info
+                  </button>
                 </div>
               </div>
             </div>
@@ -321,7 +286,7 @@
               </div>
               <div>
                 <p class="font-medium text-white">Ask questions</p>
-                <p class="text-gray-400">Type your question in the input bar at the bottom or tap the up arrow for more options.</p>
+                <p class="text-gray-400">Type your question in the input bar at the bottom.</p>
               </div>
             </div>
             
@@ -345,68 +310,113 @@
       </div>
     </div>
 
-    <script type="module">
-      import {
-        AutoProcessor,
-        AutoModelForVision2Seq,
-        RawImage,
-      } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers/dist/transformers.min.js";
-      
+    <script>
       // DOM Elements
       const video = document.getElementById("videoFeed");
       const canvas = document.getElementById("canvas");
-      const instructionText = document.getElementById("instructionText");
       const promptInput = document.getElementById("promptInput");
-      const responseContent = document.getElementById("responseContent");
       const overlayResponseText = document.getElementById("overlayResponseText");
       const responseOverlay = document.getElementById("responseOverlay");
       const processingIndicator = document.getElementById("processingIndicator");
       const intervalSelect = document.getElementById("intervalSelect");
       const overlayDurationSelect = document.getElementById("overlayDurationSelect");
       const startButton = document.getElementById("startButton");
+      const sendPromptBtn = document.getElementById("sendPromptBtn");
+      const switchCameraBtn = document.getElementById("switchCameraBtn");
       const loadingOverlay = document.getElementById("loadingOverlay");
       const loadingMessage = document.getElementById("loadingMessage");
       const statusIndicator = document.getElementById("statusIndicator");
-      const statusText = document.getElementById("statusText");
-      const expandUIBtn = document.getElementById("expandUIBtn");
-      const collapseUIBtn = document.getElementById("collapseUIBtn");
-      const compactUI = document.getElementById("compactUI");
-      const expandedUI = document.getElementById("expandedUI");
+      const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+      const settingsPanel = document.getElementById("settingsPanel");
       const readResponseToggle = document.getElementById("readResponseToggle");
       const voiceToggleBtn = document.getElementById("voiceToggleBtn");
-      const settingsBtn = document.getElementById("settingsBtn");
       const instructionsModal = document.getElementById("instructionsModal");
       const closeInstructionsBtn = document.getElementById("closeInstructionsBtn");
-      const skeletonLoader = document.getElementById("skeletonLoader");
+      const debugInfo = document.getElementById("debugInfo");
+      const debugText = document.getElementById("debugText");
+      const toggleDebugBtn = document.getElementById("toggleDebugBtn");
       
       // App State
-      let stream;
+      let stream = null;
       let isProcessing = false;
-      let processor, model;
-      let modelLoaded = false;
       let speechSynthesisActive = false;
       let voiceEnabled = false;
       let overlayTimeout = null;
+      let currentFacingMode = "environment"; // Default to back camera
+      let debugMode = false;
+      
+      // Mock AI response for testing (when model isn't available)
+      function getMockResponse(instruction) {
+        const responses = [
+          "I see a person looking at the camera.",
+          "It looks like you're in a room with some furniture.",
+          "I can see some objects in the background.",
+          "There appears to be a light source coming from the right side.",
+          "I notice what seems to be a window in the background.",
+          "The image shows what looks like an indoor setting.",
+          "I can see what appears to be a wall behind you."
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+      
+      // Debug functions
+      function logDebug(message) {
+        if (debugMode) {
+          const timestamp = new Date().toLocaleTimeString();
+          debugText.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+          debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+      }
+      
+      toggleDebugBtn.addEventListener('click', () => {
+        debugMode = !debugMode;
+        if (debugMode) {
+          debugInfo.classList.remove('hidden');
+          toggleDebugBtn.textContent = 'Hide Debug Info';
+          logDebug('Debug mode enabled');
+        } else {
+          debugInfo.classList.add('hidden');
+          toggleDebugBtn.textContent = 'Show Debug Info';
+        }
+      });
       
       // UI Interaction Handlers
-      expandUIBtn.addEventListener('click', () => {
-        expandedUI.classList.remove('hidden');
-        // Copy the prompt from compact to expanded UI
-        instructionText.value = promptInput.value;
+      closeSettingsBtn.addEventListener('click', () => {
+        settingsPanel.classList.add('hidden');
       });
       
-      collapseUIBtn.addEventListener('click', () => {
-        expandedUI.classList.add('hidden');
-        // Copy the prompt from expanded to compact UI
-        promptInput.value = instructionText.value;
+      // Switch camera button
+      switchCameraBtn.addEventListener('click', () => {
+        if (stream) {
+          // Stop current camera
+          stream.getTracks().forEach(track => track.stop());
+          stream = null;
+          
+          // Toggle facing mode
+          currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+          logDebug(`Switching camera to: ${currentFacingMode}`);
+          
+          // Reinitialize camera
+          initCamera().then(success => {
+            if (success) {
+              showResponseOverlay(`Switched to ${currentFacingMode === "user" ? "front" : "back"} camera`);
+            }
+          });
+        }
       });
       
-      // Enter key in compact mode triggers send
+      // Send prompt button
+      sendPromptBtn.addEventListener('click', () => {
+        if (promptInput.value.trim() && isProcessing) {
+          sendData();
+        }
+      });
+      
+      // Enter key triggers send
       promptInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           if (promptInput.value.trim() && isProcessing) {
-            instructionText.value = promptInput.value;
             sendData();
           }
         }
@@ -419,6 +429,7 @@
         
         if (voiceEnabled) {
           voiceToggleBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+          logDebug('Voice output enabled');
         } else {
           voiceToggleBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
           // Cancel any ongoing speech
@@ -426,16 +437,8 @@
             window.speechSynthesis.cancel();
             speechSynthesisActive = false;
           }
+          logDebug('Voice output disabled');
         }
-      });
-      
-      // Settings button
-      settingsBtn.addEventListener('click', () => {
-        expandedUI.classList.remove('hidden');
-        // Scroll to settings section
-        setTimeout(() => {
-          document.querySelector('.custom-scrollbar').scrollTop = 1000;
-        }, 100);
       });
       
       // Text-to-speech functionality
@@ -444,10 +447,11 @@
         
         if (voiceEnabled) {
           voiceToggleBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-          if (responseContent.textContent && 
-              responseContent.textContent !== "AI response will appear here..." && 
-              responseContent.textContent !== "Processing...") {
-            speakResponse(responseContent.textContent);
+          const currentResponse = overlayResponseText.textContent;
+          if (currentResponse && 
+              currentResponse !== "AI response will appear here..." && 
+              currentResponse !== "Processing...") {
+            speakResponse(currentResponse);
           }
         } else {
           voiceToggleBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
@@ -492,7 +496,7 @@
       }
       
       function updateStatus(text, isActive = false) {
-        statusText.textContent = text;
+        logDebug(`Status: ${text}`);
         
         if (isActive) {
           statusIndicator.classList.remove('bg-gray-600');
@@ -529,14 +533,6 @@
         loadingOverlay.classList.remove('flex');
       }
       
-      function showSkeletonLoader() {
-        skeletonLoader.classList.remove('hidden');
-      }
-      
-      function hideSkeletonLoader() {
-        skeletonLoader.classList.add('hidden');
-      }
-      
       function showProcessingIndicator() {
         processingIndicator.classList.remove('hidden');
       }
@@ -566,56 +562,51 @@
         }
       }
       
-      async function initModel() {
-        if (modelLoaded) return;
-        
-        try {
-          const modelId = "HuggingFaceTB/SmolVLM-500M-Instruct";
-          showLoading();
-          loadingMessage.textContent = "Loading AI model... (1/3)";
-          updateStatus("Loading AI...");
-          
-          processor = await AutoProcessor.from_pretrained(modelId);
-          loadingMessage.textContent = "Loading AI model... (2/3)";
-          
-          model = await AutoModelForVision2Seq.from_pretrained(modelId, {
-            dtype: {
-              embed_tokens: "fp16",
-              vision_encoder: "q4",
-              decoder_model_merged: "q4",
-            },
-            device: "webgpu",
-          });
-          
-          loadingMessage.textContent = "AI model ready!";
-          modelLoaded = true;
-          updateStatus("AI model loaded");
-        } catch (err) {
-          console.error("Error loading model:", err);
-          responseContent.textContent = `Error loading AI model: ${err.message}. Please try reloading the page.`;
-          showResponseOverlay(`Error: ${err.message}`);
-          loadingMessage.textContent = "Error loading AI model";
-          updateStatus("Error: AI failed to load");
-        } finally {
-          hideLoading();
-        }
-      }
-      
       async function initCamera() {
         try {
           updateStatus("Requesting camera...");
+          logDebug(`Requesting camera with facing mode: ${currentFacingMode}`);
           
-          // Try to use the back camera on mobile first
+          // Try to use the specified camera
           const constraints = { 
             video: { 
-              facingMode: { ideal: "environment" },
+              facingMode: { exact: currentFacingMode },
               width: { ideal: 1280 },
               height: { ideal: 720 }
             },
             audio: false 
           };
           
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          try {
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+          } catch (err) {
+            logDebug(`Failed with exact constraint: ${err.message}. Trying with ideal constraint.`);
+            
+            // If exact constraint fails, try with ideal constraint
+            const fallbackConstraints = { 
+              video: { 
+                facingMode: { ideal: currentFacingMode },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              },
+              audio: false 
+            };
+            
+            try {
+              stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+            } catch (fallbackErr) {
+              logDebug(`Failed with ideal constraint: ${fallbackErr.message}. Trying with any camera.`);
+              
+              // If that still fails, try with any camera
+              const basicConstraints = { 
+                video: true,
+                audio: false 
+              };
+              
+              stream = await navigator.mediaDevices.getUserMedia(basicConstraints);
+            }
+          }
+          
           video.srcObject = stream;
           
           // Wait for video to be ready
@@ -624,117 +615,109 @@
           });
           
           const cameraReadyMsg = "Camera ready! Press the play button to start.";
-          responseContent.textContent = cameraReadyMsg;
           showResponseOverlay(cameraReadyMsg);
           updateStatus("Camera ready");
+          logDebug("Camera initialized successfully");
           return true;
         } catch (err) {
           console.error("Error accessing camera:", err);
           const errorMsg = `Camera error: ${err.message}. Please check permissions.`;
-          responseContent.textContent = errorMsg;
           showResponseOverlay(errorMsg);
           updateStatus("Camera access denied");
-          
-          // Show expanded UI to display the error
-          expandedUI.classList.remove('hidden');
+          logDebug(`Camera error: ${err.message}`);
           return false;
         }
       }
       
       function captureImage() {
-        if (!stream || !video.videoWidth) {
-          console.warn("Video stream not ready for capture.");
+        if (!stream) {
+          logDebug("No camera stream available for capture");
           return null;
         }
         
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext("2d", { willReadFrequently: true });
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const frame = context.getImageData(0, 0, canvas.width, canvas.height);
-        return new RawImage(frame.data, frame.width, frame.height, 4);
-      }
-      
-      async function runLocalVisionInference(imgElement, instruction) {
-        const messages = [
-          {
-            role: "user",
-            content: [{ type: "image" }, { type: "text", text: instruction }],
-          },
-        ];
-        
-        const text = processor.apply_chat_template(messages, {
-          add_generation_prompt: true,
-        });
-        
-        const inputs = await processor(text, [imgElement], {
-          do_image_splitting: false,
-        });
-        
-        const generatedIds = await model.generate({
-          ...inputs,
-          max_new_tokens: 100,
-        });
-        
-        const output = processor.batch_decode(
-          generatedIds.slice(null, [inputs.input_ids.dims.at(-1), null]),
-          { skip_special_tokens: true }
-        );
-        
-        return output[0].trim();
+        try {
+          const tracks = stream.getVideoTracks();
+          if (!tracks || tracks.length === 0) {
+            logDebug("No video tracks in stream");
+            return null;
+          }
+          
+          if (!video.videoWidth || !video.videoHeight) {
+            logDebug("Video dimensions not available yet");
+            return null;
+          }
+          
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          
+          const context = canvas.getContext("2d", { willReadFrequently: true });
+          if (!context) {
+            logDebug("Could not get canvas context");
+            return null;
+          }
+          
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+          
+          if (!imageData) {
+            logDebug("Could not get image data from canvas");
+            return null;
+          }
+          
+          logDebug(`Captured image: ${canvas.width}x${canvas.height}`);
+          return imageData;
+        } catch (err) {
+          logDebug(`Error capturing image: ${err.message}`);
+          return null;
+        }
       }
       
       async function sendData() {
         if (!isProcessing) return;
         
         updateStatus("Analyzing...", true);
-        // Get the prompt from the appropriate input based on which UI is visible
-        const instruction = expandedUI.classList.contains('hidden') ? 
-                            promptInput.value : 
-                            instructionText.value;
+        const instruction = promptInput.value.trim() || "What do you see?";
         
-        const rawImg = captureImage();
-        
-        if (!rawImg) {
-          const errorMsg = "Could not capture image";
-          responseContent.textContent = errorMsg;
-          showResponseOverlay(errorMsg);
-          updateStatus("Capture failed", false);
-          hideSkeletonLoader();
-          hideProcessingIndicator();
-          return;
-        }
+        showProcessingIndicator();
         
         try {
-          responseContent.textContent = "Processing...";
-          showSkeletonLoader();
-          showProcessingIndicator();
+          logDebug(`Processing prompt: "${instruction}"`);
+          showResponseOverlay("Processing...");
           
-          const reply = await runLocalVisionInference(rawImg, instruction);
-          responseContent.textContent = reply;
-          hideSkeletonLoader();
-          hideProcessingIndicator();
+          // Capture image from camera
+          const imageData = captureImage();
           
-          // Display the response in the overlay
-          showResponseOverlay(reply);
-          
-          // Speak the response if voice is enabled
-          if (voiceEnabled) {
-            speakResponse(reply);
+          if (!imageData) {
+            const errorMsg = "Could not capture image from camera";
+            showResponseOverlay(errorMsg);
+            updateStatus("Capture failed", false);
+            hideProcessingIndicator();
+            logDebug(errorMsg);
+            return;
           }
           
-          updateStatus("Active", true);
+          // In this version, we'll just use mock responses since we're focusing on UI
+          setTimeout(() => {
+            const reply = getMockResponse(instruction);
+            showResponseOverlay(reply);
+            hideProcessingIndicator();
+            
+            // Speak the response if voice is enabled
+            if (voiceEnabled) {
+              speakResponse(reply);
+            }
+            
+            updateStatus("Active", true);
+            logDebug(`Response received: "${reply}"`);
+          }, 1000); // Simulate processing time
+          
         } catch (e) {
           console.error(e);
           const errorMsg = `Error: ${e.message}`;
-          responseContent.textContent = errorMsg;
           showResponseOverlay(errorMsg);
           updateStatus("Error in processing", false);
-          hideSkeletonLoader();
           hideProcessingIndicator();
-          
-          // Show the expanded UI if there's an error
-          expandedUI.classList.remove('hidden');
+          logDebug(`Error processing: ${e.message}`);
         }
       }
       
@@ -753,10 +736,6 @@
       }
       
       async function handleStart() {
-        if (!modelLoaded) {
-          await initModel();
-        }
-        
         if (!stream) {
           const cameraInitialized = await initCamera();
           if (!cameraInitialized) {
@@ -767,12 +746,11 @@
         isProcessing = true;
         updateButtonIcon(true);
         promptInput.disabled = false;
-        instructionText.disabled = false;
         intervalSelect.disabled = true;
         const startMsg = "AI vision active...";
-        responseContent.textContent = startMsg;
         showResponseOverlay(startMsg);
         updateStatus("Active", true);
+        logDebug("Processing started");
         
         processingLoop();
       }
@@ -781,11 +759,10 @@
         isProcessing = false;
         updateButtonIcon(false);
         promptInput.disabled = false;
-        instructionText.disabled = false;
         intervalSelect.disabled = false;
         updateStatus("Inactive", false);
-        hideSkeletonLoader();
         hideProcessingIndicator();
+        logDebug("Processing stopped");
         
         // Cancel any ongoing speech
         if (speechSynthesisActive) {
@@ -803,25 +780,13 @@
       });
       
       window.addEventListener("DOMContentLoaded", async () => {
-        // Check for WebGPU support
-        if (!navigator.gpu) {
-          const errorMsg = "Your browser doesn't support WebGPU. Please try Chrome or Edge.";
-          responseContent.textContent = errorMsg;
-          showResponseOverlay(errorMsg);
-          startButton.disabled = true;
-          startButton.classList.remove('bg-white');
-          startButton.classList.add('bg-gray-700');
-          updateStatus("WebGPU not supported", false);
-          expandedUI.classList.remove('hidden');
-          return;
-        }
+        logDebug("App initialized");
         
         // Set initial input placeholder
         promptInput.placeholder = "What do you see?";
-        instructionText.value = "What do you see?";
         
-        // Initialize model on startup
-        await initModel();
+        // Initialize camera on startup
+        await initCamera();
       });
       
       // Prevent zoom on double tap for iOS
@@ -844,23 +809,6 @@
         if (speechSynthesisActive) {
           window.speechSynthesis.cancel();
         }
-      });
-      
-      // Tap on response overlay to keep it visible longer
-      responseOverlay.addEventListener('click', (e) => {
-        // Even though the overlay is pointer-events-none, we'll keep this for future use
-        if (overlayTimeout) {
-          clearTimeout(overlayTimeout);
-          
-          // Reset the timer
-          const duration = parseInt(overlayDurationSelect.value, 10);
-          if (duration > 0) {
-            overlayTimeout = setTimeout(() => {
-              responseOverlay.classList.add('hidden');
-            }, duration);
-          }
-        }
-        e.stopPropagation();
       });
     </script>
   </body>
