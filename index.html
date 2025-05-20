@@ -120,38 +120,33 @@
         display: block;
       }
       
-      select {
+      select, input {
         padding: 10px;
         border-radius: 4px;
         border: 1px solid #ccc;
         font-size: 14px;
+        width: 100%;
+      }
+      
+      .api-key-container {
+        width: 100%;
+        margin-bottom: 10px;
       }
       
       .hidden {
         display: none;
       }
       
-      .status {
-        margin-top: 10px;
-        padding: 8px;
-        border-radius: 4px;
-        text-align: center;
-        font-weight: bold;
-      }
-      
-      .status.error {
-        background-color: rgba(255, 0, 0, 0.1);
+      .error-message {
         color: #dc3545;
+        font-size: 14px;
+        margin-top: 5px;
       }
       
-      .status.success {
-        background-color: rgba(0, 255, 0, 0.1);
+      .success-message {
         color: #28a745;
-      }
-      
-      .status.warning {
-        background-color: rgba(255, 255, 0, 0.1);
-        color: #ffc107;
+        font-size: 14px;
+        margin-top: 5px;
       }
       
       /* Mobile-specific styling */
@@ -178,7 +173,7 @@
           gap: 5px;
         }
         
-        select, button {
+        select, button, input {
           width: 100%;
           padding: 12px;
           font-size: 16px; /* Larger touch targets */
@@ -199,14 +194,26 @@
 
     <div id="videoContainer">
       <video id="videoFeed" autoplay playsinline></video>
-      <div id="loadingOverlay">Loading...</div>
+      <div id="loadingOverlay">Processing...</div>
     </div>
     <canvas id="canvas" class="hidden"></canvas>
     <!-- For capturing frames -->
-    
-    <div id="statusMessage" class="status"></div>
 
     <div class="io-areas">
+      <div class="api-key-container">
+        <label for="apiKeyInput">Hugging Face API Key:</label>
+        <input type="password" id="apiKeyInput" placeholder="Enter your Hugging Face API key" />
+        <div class="error-message" id="apiKeyError"></div>
+      </div>
+      <div>
+        <label for="modelSelect">Select Model:</label>
+        <select id="modelSelect">
+          <option value="HuggingFaceTB/SmolVLM-500M-Instruct">SmolVLM-500M-Instruct</option>
+          <option value="HuggingFaceTB/SmolVLM-1.7B-Instruct">SmolVLM-1.7B-Instruct</option>
+          <option value="Salesforce/blip2-opt-2.7b">BLIP2-OPT-2.7B</option>
+          <option value="Salesforce/blip-image-captioning-large">BLIP-Large</option>
+        </select>
+      </div>
       <div>
         <label for="instructionText">Instruction:</label>
         <textarea
@@ -241,15 +248,7 @@
       <button id="switchCameraBtn" class="switch-camera">Switch Camera</button>
     </div>
 
-    <script type="module">
-      // Import the required modules from transformers.js
-      import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers/dist/transformers.min.js";
-      
-      // Set maximum cache size to avoid memory issues
-      env.useBrowserCache = true;
-      env.remoteHost = "https://cdn-lfs.huggingface.co";
-      env.allowLocalModels = false;
-      
+    <script>
       const video = document.getElementById("videoFeed");
       const canvas = document.getElementById("canvas");
       const instructionText = document.getElementById("instructionText");
@@ -258,51 +257,31 @@
       const startButton = document.getElementById("startButton");
       const switchCameraBtn = document.getElementById("switchCameraBtn");
       const loadingOverlay = document.getElementById("loadingOverlay");
-      const statusMessage = document.getElementById("statusMessage");
+      const apiKeyInput = document.getElementById("apiKeyInput");
+      const apiKeyError = document.getElementById("apiKeyError");
+      const modelSelect = document.getElementById("modelSelect");
       
       let stream = null;
       let isProcessing = false;
-      let visionPipeline = null;
       let facingMode = 'environment'; // Start with back camera
-      let modelLoaded = false;
       
-      // Show a status message to the user
-      function showStatus(message, type = "success") {
-        statusMessage.textContent = message;
-        statusMessage.className = "status " + type;
+      // Try to load API key from localStorage
+      window.addEventListener('DOMContentLoaded', () => {
+        const savedApiKey = localStorage.getItem('hf_api_key');
+        if (savedApiKey) {
+          apiKeyInput.value = savedApiKey;
+        }
         
-        // Hide after 5 seconds if it's a success message
-        if (type === "success") {
-          setTimeout(() => {
-            statusMessage.textContent = "";
-            statusMessage.className = "status hidden";
-          }, 5000);
-        }
-      }
+        startCamera();
+      });
       
-      async function initModel() {
-        try {
-          showStatus("Loading model...", "warning");
-          loadingOverlay.style.display = "flex";
-          responseText.value = "Initializing vision model...";
-          
-          // Use the image-to-text pipeline with a specific model
-          visionPipeline = await pipeline(
-            "image-to-text",
-            "HuggingFaceTB/SmolVLM-500M-Instruct"
-          );
-          
-          modelLoaded = true;
-          responseText.value = "Model loaded successfully. Ready to start.";
-          showStatus("Model loaded successfully!", "success");
-          loadingOverlay.style.display = "none";
-        } catch (err) {
-          console.error("Error loading model:", err);
-          responseText.value = "Failed to load model: " + err.message;
-          showStatus("Failed to load model: " + err.message, "error");
-          loadingOverlay.style.display = "none";
+      // Save API key to localStorage when entered
+      apiKeyInput.addEventListener('change', () => {
+        if (apiKeyInput.value.trim() !== '') {
+          localStorage.setItem('hf_api_key', apiKeyInput.value.trim());
+          apiKeyError.textContent = '';
         }
-      }
+      });
       
       async function startCamera() {
         // Stop any existing stream
@@ -319,11 +298,10 @@
           stream = await navigator.mediaDevices.getUserMedia(constraints);
           video.srcObject = stream;
           responseText.value = `Camera ready (${facingMode === 'environment' ? 'back' : 'front'} camera)`;
-          showStatus(`Camera ready (${facingMode === 'environment' ? 'back' : 'front'} camera)`, "success");
         } catch (err) {
           console.error("Error accessing camera:", err);
           responseText.value = `Error accessing camera: ${err.message}`;
-          showStatus("Camera error: " + err.message, "error");
+          alert(`Could not access camera: ${err.message}. Please check permissions.`);
         }
       }
       
@@ -347,7 +325,7 @@
           return null;
         }
         
-        // Set canvas dimensions to match video
+        // Set canvas dimensions to match video feed
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         
@@ -355,46 +333,94 @@
         const context = canvas.getContext("2d", { willReadFrequently: true });
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // Return the canvas element to use with transformers.js
-        return canvas;
+        // Get base64 encoded image data
+        return canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
       }
       
-      async function processImage(imageElement, prompt) {
-        if (!visionPipeline) {
-          throw new Error("Model not loaded yet");
+      async function sendToHuggingFaceAPI(imageBase64, prompt) {
+        const apiKey = apiKeyInput.value.trim();
+        
+        if (!apiKey) {
+          apiKeyError.textContent = "Please enter your Hugging Face API key";
+          throw new Error("API key is required");
         }
         
+        const modelId = modelSelect.value;
+        const apiUrl = `https://api-inference.huggingface.co/models/${modelId}`;
+        
         try {
-          // Call the vision pipeline with the image element and prompt
-          const result = await visionPipeline(imageElement, {
-            prompt: prompt,
-            max_new_tokens: 100
+          // Format payload based on model type
+          let payload;
+          
+          if (modelId.includes('SmolVLM')) {
+            // For SmolVLM models
+            payload = {
+              inputs: {
+                image: imageBase64,
+                text: prompt
+              }
+            };
+          } else if (modelId.includes('blip')) {
+            // For BLIP models
+            payload = {
+              inputs: {
+                image: imageBase64,
+                text: prompt || "What's in this image?"
+              }
+            };
+          } else {
+            // Generic format for other vision-language models
+            payload = {
+              inputs: {
+                image: imageBase64,
+                prompt: prompt
+              }
+            };
+          }
+          
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
           });
           
-          // Extract the generated text from the result
-          if (Array.isArray(result) && result.length > 0) {
-            return result[0].generated_text;
-          } else {
-            return "No result generated";
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`API Error (${response.status}): ${errorData.error || response.statusText}`);
           }
+          
+          const result = await response.json();
+          
+          // Different models return results in different formats
+          if (typeof result === 'string') {
+            return result;
+          } else if (Array.isArray(result) && result.length > 0) {
+            if (typeof result[0] === 'string') {
+              return result[0];
+            } else if (result[0].generated_text) {
+              return result[0].generated_text;
+            }
+          } else if (result.generated_text) {
+            return result.generated_text;
+          }
+          
+          return JSON.stringify(result);
         } catch (error) {
-          console.error("Inference error:", error);
-          throw new Error("Failed to process image: " + error.message);
+          console.error("API request failed:", error);
+          throw error;
         }
       }
       
       async function sendData() {
         if (!isProcessing) return;
         
-        if (!modelLoaded) {
-          responseText.value = "Model not loaded yet. Please wait...";
-          return;
-        }
-        
         const instruction = instructionText.value;
-        const imageElement = captureImage();
+        const imageBase64 = captureImage();
         
-        if (!imageElement) {
+        if (!imageBase64) {
           responseText.value = "Camera capture failed";
           return;
         }
@@ -403,18 +429,13 @@
           loadingOverlay.style.display = "flex";
           responseText.value = "Processing image...";
           
-          const reply = await processImage(imageElement, instruction);
-          responseText.value = reply || "No response generated";
-          
-          loadingOverlay.style.display = "none";
+          const reply = await sendToHuggingFaceAPI(imageBase64, instruction);
+          responseText.value = reply;
         } catch (e) {
           console.error(e);
           responseText.value = `Error: ${e.message}`;
+        } finally {
           loadingOverlay.style.display = "none";
-          
-          if (e.message.includes("not loaded")) {
-            showStatus("Model not loaded. Please wait or reload the page.", "error");
-          }
         }
       }
       
@@ -432,11 +453,6 @@
       }
       
       function handleStart() {
-        if (!modelLoaded) {
-          showStatus("Model not loaded yet. Please wait...", "warning");
-          return;
-        }
-        
         if (!stream) {
           responseText.value = "Camera not available. Starting camera...";
           startCamera();
@@ -446,13 +462,20 @@
           return;
         }
         
+        // Check if API key is provided
+        if (!apiKeyInput.value.trim()) {
+          apiKeyError.textContent = "Please enter your Hugging Face API key";
+          return;
+        }
+        
         isProcessing = true;
         startButton.textContent = "Stop";
         startButton.classList.replace("start", "stop");
         instructionText.disabled = true;
         intervalSelect.disabled = true;
+        apiKeyInput.disabled = true;
+        modelSelect.disabled = true;
         responseText.value = "Processing started...";
-        showStatus("Processing started", "success");
         processingLoop();
       }
       
@@ -462,8 +485,9 @@
         startButton.classList.replace("stop", "start");
         instructionText.disabled = false;
         intervalSelect.disabled = false;
+        apiKeyInput.disabled = false;
+        modelSelect.disabled = false;
         responseText.value = "Processing stopped";
-        showStatus("Processing stopped", "warning");
       }
       
       startButton.addEventListener("click", () => {
@@ -475,16 +499,6 @@
       });
       
       switchCameraBtn.addEventListener("click", switchCamera);
-      
-      window.addEventListener("DOMContentLoaded", async () => {
-        showStatus("Starting camera...", "warning");
-        
-        // Start camera first for better user experience
-        await startCamera();
-        
-        // Then load the model
-        await initModel();
-      });
       
       window.addEventListener("beforeunload", () => {
         stopCamera();
