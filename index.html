@@ -2,775 +2,350 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>AI Vision</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Camera Interaction App</title>
     <style>
-      /* Custom animations and styles */
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
       
-      .animate-spin-custom {
-        animation: spin 1s linear infinite;
+      body {
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        background-color: #f0f0f0;
+        min-height: 100vh;
       }
       
-      @keyframes pulse-skeleton {
-        0%, 100% { opacity: 0.5; }
-        50% { opacity: 0.8; }
+      h1 {
+        font-size: 1.8rem;
+        text-align: center;
+        margin-bottom: 8px;
       }
       
-      .animate-pulse-skeleton {
-        animation: pulse-skeleton 1.5s ease-in-out infinite;
+      .controls,
+      .io-areas {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background-color: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 600px;
       }
       
-      /* Flame effect animation */
-      @keyframes flicker {
-        0%, 100% { opacity: 0.8; }
-        10% { opacity: 0.7; }
-        20% { opacity: 0.9; }
-        30% { opacity: 0.8; }
-        40% { opacity: 0.9; }
-        60% { opacity: 0.7; }
-        80% { opacity: 0.9; }
+      .io-areas {
+        flex-direction: column;
+        align-items: stretch;
       }
       
-      .flame-effect {
-        animation: flicker 3s infinite alternate;
-        filter: blur(8px);
-        opacity: 0.8;
-      }
-      
-      /* Fade in animation */
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      
-      .animate-fade-in {
-        animation: fadeIn 0.3s ease-out forwards;
-      }
-      
-      /* Override focus styles */
-      textarea:focus, input:focus {
-        outline: none;
-      }
-      
-      /* Custom scrollbar for webkit browsers */
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 4px;
-      }
-      
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: #161616;
-      }
-      
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #444;
+      textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
         border-radius: 4px;
+        font-size: 14px;
+        resize: vertical;
+        min-height: 50px;
+      }
+      
+      #videoContainer {
+        position: relative;
+        width: 100%;
+        max-width: 480px;
+        border: 2px solid #333;
+        background-color: #000;
+        border-radius: 8px;
+        overflow: hidden;
+        aspect-ratio: 4/3;
+      }
+      
+      #videoFeed {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 6px;
+        object-fit: cover;
+      }
+      
+      #loadingOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 10;
+        border-radius: 6px;
+        color: #ffffff;
+        font-size: 1.5em;
+        font-weight: bold;
+      }
+      
+      #startButton {
+        padding: 12px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        min-width: 100px;
+      }
+      
+      #startButton.start {
+        background-color: #28a745; /* Green */
+      }
+      
+      #startButton.stop {
+        background-color: #dc3545; /* Red */
+      }
+      
+      label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+      }
+      
+      select {
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+      }
+      
+      .hidden {
+        display: none;
+      }
+      
+      /* Mobile-specific styling */
+      @media (max-width: 600px) {
+        body {
+          padding: 12px;
+          gap: 12px;
+        }
+        
+        h1 {
+          font-size: 1.5rem;
+        }
+        
+        .controls {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        
+        .interval-wrapper {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+        
+        select, #startButton {
+          width: 100%;
+          padding: 12px;
+          font-size: 16px; /* Larger touch targets */
+        }
+        
+        #videoContainer {
+          border-width: 1px;
+        }
+        
+        textarea {
+          font-size: 16px; /* Better readability on mobile */
+        }
       }
     </style>
   </head>
-  <body class="bg-black text-gray-100 font-sans overflow-hidden fixed inset-0">
-    <div class="flex flex-col h-full max-w-lg mx-auto relative" id="appContainer">
-      <!-- App Header -->
-      <header class="bg-black py-3 px-4 flex items-center justify-center z-10 border-b border-gray-800">
-        <h1 class="text-lg font-semibold text-white">AI Vision Camera</h1>
-      </header>
-      
-      <!-- Main Content -->
-      <main class="flex-1 flex flex-col relative overflow-hidden">
-        <!-- Camera View with Flame Effect -->
-        <div class="relative flex-1 bg-black">
-          <!-- Camera Feed -->
-          <video id="videoFeed" class="w-full h-full object-cover"></video>
-          
-          <!-- Flame Effect Overlay -->
-          <div class="absolute inset-0 pointer-events-none overflow-hidden">
-            <!-- Top Flame -->
-            <div class="absolute top-0 left-0 right-0 h-12 flame-effect">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 25" preserveAspectRatio="none" class="w-full h-full">
-                <path d="M0,25 C15,5 35,15 50,0 C65,15 85,5 100,25 Z" fill="black" />
-              </svg>
-            </div>
-            
-            <!-- Bottom Flame -->
-            <div class="absolute bottom-0 left-0 right-0 h-12 flame-effect transform rotate-180">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 25" preserveAspectRatio="none" class="w-full h-full">
-                <path d="M0,25 C15,5 35,15 50,0 C65,15 85,5 100,25 Z" fill="black" />
-              </svg>
-            </div>
-            
-            <!-- Left Flame -->
-            <div class="absolute top-0 left-0 bottom-0 w-8 flame-effect transform rotate-90">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 25" preserveAspectRatio="none" class="w-full h-full">
-                <path d="M0,25 C15,5 35,15 50,0 C65,15 85,5 100,25 Z" fill="black" />
-              </svg>
-            </div>
-            
-            <!-- Right Flame -->
-            <div class="absolute top-0 right-0 bottom-0 w-8 flame-effect transform -rotate-90">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 25" preserveAspectRatio="none" class="w-full h-full">
-                <path d="M0,25 C15,5 35,15 50,0 C65,15 85,5 100,25 Z" fill="black" />
-              </svg>
-            </div>
-          </div>
-          
-          <!-- AI Response Overlay -->
-          <div id="responseOverlay" class="absolute top-0 left-0 right-0 p-4 z-20 pointer-events-none hidden">
-            <div class="bg-black bg-opacity-70 backdrop-blur-sm rounded-xl p-4 border border-gray-700 animate-fade-in">
-              <div class="flex items-start">
-                <div class="flex-shrink-0 mr-3">
-                  <div class="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-                    <i class="fas fa-robot text-black text-xs"></i>
-                  </div>
-                </div>
-                <div class="flex-grow">
-                  <p id="overlayResponseText" class="text-white text-sm"></p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Debug Info Display (for troubleshooting) -->
-          <div id="debugInfo" class="absolute bottom-20 left-0 right-0 p-2 z-20 text-xs text-white bg-black bg-opacity-70 hidden">
-            <div id="debugText"></div>
-          </div>
-          
-          <!-- Loading Overlay -->
-          <div id="loadingOverlay" class="absolute inset-0 bg-black bg-opacity-70 flex-col hidden items-center justify-center z-10 text-white">
-            <div class="w-10 h-10 border-3 border-t-white border-r-white border-b-white border-l-transparent rounded-full animate-spin-custom mb-4"></div>
-            <div id="loadingMessage" class="text-center px-6">Loading AI model...</div>
-          </div>
-          
-          <!-- Floating Action Button -->
-          <button id="startButton" class="absolute bottom-16 right-4 w-14 h-14 rounded-full bg-white text-black flex items-center justify-center shadow-lg z-20 hover:bg-gray-200">
-            <i class="fas fa-play"></i>
-          </button>
-          
-          <!-- Control Buttons -->
-          <div class="absolute bottom-16 left-4 flex gap-3 z-20">
-            <button id="switchCameraBtn" class="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center border border-gray-700">
-              <i class="fas fa-sync-alt"></i>
-            </button>
-            <button id="voiceToggleBtn" class="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center border border-gray-700">
-              <i class="fas fa-volume-mute"></i>
-            </button>
-          </div>
-          
-          <!-- AI Thinking/Processing Indicator -->
-          <div id="processingIndicator" class="absolute top-4 right-4 hidden">
-            <div class="flex items-center bg-gray-900 bg-opacity-70 rounded-full px-2 py-1">
-              <div class="w-3 h-3 bg-white rounded-full mr-2 animate-pulse"></div>
-              <span class="text-xs text-white">AI is thinking...</span>
-            </div>
-          </div>
-        </div>
-        <canvas id="canvas" class="hidden"></canvas>
-        
-        <!-- Compact Bottom UI -->
-        <div id="compactUI" class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-30">
-          <!-- Input Bar -->
-          <div class="flex items-center bg-gray-900 border-t border-gray-800 px-3 py-3">
-            <div class="flex-grow relative mr-2">
-              <input id="promptInput" type="text" placeholder="Ask the AI about what it sees..." class="w-full py-2 px-4 bg-gray-800 text-white rounded-full text-sm focus:ring-1 focus:ring-white border-none">
-              <div id="statusIndicator" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full bg-gray-600"></div>
-            </div>
-            <button id="sendPromptBtn" class="p-2 text-white bg-gray-800 rounded-full flex items-center justify-center">
-              <i class="fas fa-paper-plane"></i>
-            </button>
-          </div>
-        </div>
-        
-        <!-- Settings Panel (initially hidden) -->
-        <div id="settingsPanel" class="fixed inset-0 bg-black bg-opacity-95 z-40 hidden">
-          <div class="flex flex-col h-full">
-            <!-- Settings Header -->
-            <div class="bg-gray-900 p-4 flex items-center justify-between border-b border-gray-800">
-              <h2 class="text-white font-medium">Camera Settings</h2>
-              <button id="closeSettingsBtn" class="text-gray-400 hover:text-white">
-                <i class="fas fa-times text-lg"></i>
-              </button>
-            </div>
-            
-            <!-- Settings Content -->
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
-              <!-- Voice Settings -->
-              <div class="mb-4">
-                <h3 class="text-xs text-gray-400 font-medium mb-2">Voice Settings</h3>
-                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                  <div class="flex items-center justify-between">
-                    <span class="text-sm text-white">Read responses aloud</span>
-                    <label class="inline-flex items-center cursor-pointer">
-                      <input type="checkbox" id="readResponseToggle" class="sr-only peer">
-                      <div class="relative w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white"></div>
-                    </label>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Camera Settings -->
-              <div class="mb-4">
-                <h3 class="text-xs text-gray-400 font-medium mb-2">Camera Settings</h3>
-                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                  <div class="mb-3">
-                    <label for="intervalSelect" class="block text-xs text-gray-400 mb-1">Camera refresh rate:</label>
-                    <select id="intervalSelect" class="w-full p-2 text-sm border border-gray-700 rounded-lg appearance-none bg-gray-900 text-gray-200 pr-8 relative">
-                      <option value="500">0.5s</option>
-                      <option value="1000" selected>1s</option>
-                      <option value="1500">1.5s</option>
-                      <option value="2000">2s</option>
-                      <option value="3000">3s</option>
-                    </select>
-                  </div>
-                  
-                  <div class="mb-3">
-                    <label for="overlayDurationSelect" class="block text-xs text-gray-400 mb-1">Response display time:</label>
-                    <select id="overlayDurationSelect" class="w-full p-2 text-sm border border-gray-700 rounded-lg appearance-none bg-gray-900 text-gray-200 pr-8 relative">
-                      <option value="3000">3 seconds</option>
-                      <option value="5000" selected>5 seconds</option>
-                      <option value="10000">10 seconds</option>
-                      <option value="0">Always visible</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Troubleshooting -->
-              <div>
-                <h3 class="text-xs text-gray-400 font-medium mb-2">Troubleshooting</h3>
-                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                  <button id="toggleDebugBtn" class="text-sm text-white bg-gray-900 py-2 px-4 rounded-lg w-full">
-                    Show Debug Info
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
+  <body>
+    <h1>Camera Interaction App</h1>
+
+    <div id="videoContainer">
+      <video id="videoFeed" autoplay playsinline></video>
+      <div id="loadingOverlay">Loading...</div>
     </div>
-    
-    <!-- Instructions Modal -->
-    <div id="instructionsModal" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
-      <div class="bg-gray-900 rounded-2xl shadow-xl max-w-md w-full mx-auto overflow-hidden border border-gray-800">
-        <div class="p-6">
-          <h2 class="text-xl font-semibold text-center text-white mb-4">Welcome to AI Vision Camera</h2>
-          
-          <div class="space-y-4 text-sm">
-            <div class="flex items-start gap-3">
-              <div class="flex-shrink-0 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white">
-                <i class="fas fa-camera"></i>
-              </div>
-              <div>
-                <p class="font-medium text-white">Allow camera access</p>
-                <p class="text-gray-400">First, grant permission to use your camera when prompted.</p>
-              </div>
-            </div>
-            
-            <div class="flex items-start gap-3">
-              <div class="flex-shrink-0 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white">
-                <i class="fas fa-play"></i>
-              </div>
-              <div>
-                <p class="font-medium text-white">Start the camera</p>
-                <p class="text-gray-400">Tap the floating button to start the AI vision analysis.</p>
-              </div>
-            </div>
-            
-            <div class="flex items-start gap-3">
-              <div class="flex-shrink-0 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white">
-                <i class="fas fa-comment-alt"></i>
-              </div>
-              <div>
-                <p class="font-medium text-white">Ask questions</p>
-                <p class="text-gray-400">Type your question in the input bar at the bottom.</p>
-              </div>
-            </div>
-            
-            <div class="flex items-start gap-3">
-              <div class="flex-shrink-0 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white">
-                <i class="fas fa-eye"></i>
-              </div>
-              <div>
-                <p class="font-medium text-white">View AI responses</p>
-                <p class="text-gray-400">AI responses will appear directly on your screen as an overlay.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="bg-gray-800 p-4 flex justify-center">
-          <button id="closeInstructionsBtn" class="bg-white text-black px-6 py-2 rounded-lg font-medium hover:bg-gray-200">
-            Get Started
-          </button>
-        </div>
+    <canvas id="canvas" class="hidden"></canvas>
+    <!-- For capturing frames -->
+
+    <div class="io-areas">
+      <div>
+        <label for="instructionText">Instruction:</label>
+        <textarea
+          id="instructionText"
+          name="Instruction"
+        >What do you see?</textarea>
+      </div>
+      <div>
+        <label for="responseText">Response:</label>
+        <textarea
+          id="responseText"
+          name="Response"
+          readonly
+          placeholder="Server response will appear here..."
+        ></textarea>
       </div>
     </div>
 
-    <script>
-      // DOM Elements
+    <div class="controls">
+      <div class="interval-wrapper">
+        <label for="intervalSelect">Interval between requests:</label>
+        <select id="intervalSelect" name="Interval between 2 requests">
+          <option value="0" selected>0ms</option>
+          <option value="100">100ms</option>
+          <option value="250">250ms</option>
+          <option value="500">500ms</option>
+          <option value="1000">1s</option>
+          <option value="2000">2s</option>
+        </select>
+      </div>
+      <button id="startButton" class="start">Start</button>
+    </div>
+
+    <script type="module">
+      import {
+        AutoProcessor,
+        AutoModelForVision2Seq,
+        RawImage,
+      } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers/dist/transformers.min.js";
       const video = document.getElementById("videoFeed");
       const canvas = document.getElementById("canvas");
-      const promptInput = document.getElementById("promptInput");
-      const overlayResponseText = document.getElementById("overlayResponseText");
-      const responseOverlay = document.getElementById("responseOverlay");
-      const processingIndicator = document.getElementById("processingIndicator");
+      const instructionText = document.getElementById("instructionText");
+      const responseText = document.getElementById("responseText");
       const intervalSelect = document.getElementById("intervalSelect");
-      const overlayDurationSelect = document.getElementById("overlayDurationSelect");
       const startButton = document.getElementById("startButton");
-      const sendPromptBtn = document.getElementById("sendPromptBtn");
-      const switchCameraBtn = document.getElementById("switchCameraBtn");
       const loadingOverlay = document.getElementById("loadingOverlay");
-      const loadingMessage = document.getElementById("loadingMessage");
-      const statusIndicator = document.getElementById("statusIndicator");
-      const closeSettingsBtn = document.getElementById("closeSettingsBtn");
-      const settingsPanel = document.getElementById("settingsPanel");
-      const readResponseToggle = document.getElementById("readResponseToggle");
-      const voiceToggleBtn = document.getElementById("voiceToggleBtn");
-      const instructionsModal = document.getElementById("instructionsModal");
-      const closeInstructionsBtn = document.getElementById("closeInstructionsBtn");
-      const debugInfo = document.getElementById("debugInfo");
-      const debugText = document.getElementById("debugText");
-      const toggleDebugBtn = document.getElementById("toggleDebugBtn");
-      
-      // App State
-      let stream = null;
+      let stream;
       let isProcessing = false;
-      let speechSynthesisActive = false;
-      let voiceEnabled = false;
-      let overlayTimeout = null;
-      let currentFacingMode = "environment"; // Default to back camera
-      let debugMode = false;
-      
-      // Mock AI response for testing (when model isn't available)
-      function getMockResponse(instruction) {
-        const responses = [
-          "I see a person looking at the camera.",
-          "It looks like you're in a room with some furniture.",
-          "I can see some objects in the background.",
-          "There appears to be a light source coming from the right side.",
-          "I notice what seems to be a window in the background.",
-          "The image shows what looks like an indoor setting.",
-          "I can see what appears to be a wall behind you."
-        ];
-        return responses[Math.floor(Math.random() * responses.length)];
+      let processor, model;
+      async function initModel() {
+        const modelId = "HuggingFaceTB/SmolVLM-500M-Instruct"; // or "HuggingFaceTB/SmolVLM-Instruct";
+        loadingOverlay.style.display = "flex";
+        responseText.value = "Loading processor...";
+        processor = await AutoProcessor.from_pretrained(modelId);
+        responseText.value = "Processor loaded. Loading model...";
+        model = await AutoModelForVision2Seq.from_pretrained(modelId, {
+          dtype: {
+            embed_tokens: "fp16",
+            vision_encoder: "q4",
+            decoder_model_merged: "q4",
+          },
+          device: "webgpu",
+        });
+        responseText.value = "Model loaded. Initializing camera...";
+        loadingOverlay.style.display = "none";
       }
-      
-      // Debug functions
-      function logDebug(message) {
-        if (debugMode) {
-          const timestamp = new Date().toLocaleTimeString();
-          debugText.innerHTML += `<div>[${timestamp}] ${message}</div>`;
-          debugInfo.scrollTop = debugInfo.scrollHeight;
-        }
-      }
-      
-      toggleDebugBtn.addEventListener('click', () => {
-        debugMode = !debugMode;
-        if (debugMode) {
-          debugInfo.classList.remove('hidden');
-          toggleDebugBtn.textContent = 'Hide Debug Info';
-          logDebug('Debug mode enabled');
-        } else {
-          debugInfo.classList.add('hidden');
-          toggleDebugBtn.textContent = 'Show Debug Info';
-        }
-      });
-      
-      // UI Interaction Handlers
-      closeSettingsBtn.addEventListener('click', () => {
-        settingsPanel.classList.add('hidden');
-      });
-      
-      // Switch camera button
-      switchCameraBtn.addEventListener('click', () => {
-        if (stream) {
-          // Stop current camera
-          stream.getTracks().forEach(track => track.stop());
-          stream = null;
-          
-          // Toggle facing mode
-          currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
-          logDebug(`Switching camera to: ${currentFacingMode}`);
-          
-          // Reinitialize camera
-          initCamera().then(success => {
-            if (success) {
-              showResponseOverlay(`Switched to ${currentFacingMode === "user" ? "front" : "back"} camera`);
-            }
-          });
-        }
-      });
-      
-      // Send prompt button
-      sendPromptBtn.addEventListener('click', () => {
-        if (promptInput.value.trim() && isProcessing) {
-          sendData();
-        }
-      });
-      
-      // Enter key triggers send
-      promptInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          if (promptInput.value.trim() && isProcessing) {
-            sendData();
-          }
-        }
-      });
-      
-      // Voice toggle button
-      voiceToggleBtn.addEventListener('click', () => {
-        voiceEnabled = !voiceEnabled;
-        readResponseToggle.checked = voiceEnabled;
-        
-        if (voiceEnabled) {
-          voiceToggleBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-          logDebug('Voice output enabled');
-        } else {
-          voiceToggleBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
-          // Cancel any ongoing speech
-          if (speechSynthesisActive) {
-            window.speechSynthesis.cancel();
-            speechSynthesisActive = false;
-          }
-          logDebug('Voice output disabled');
-        }
-      });
-      
-      // Text-to-speech functionality
-      readResponseToggle.addEventListener('change', () => {
-        voiceEnabled = readResponseToggle.checked;
-        
-        if (voiceEnabled) {
-          voiceToggleBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-          const currentResponse = overlayResponseText.textContent;
-          if (currentResponse && 
-              currentResponse !== "AI response will appear here..." && 
-              currentResponse !== "Processing...") {
-            speakResponse(currentResponse);
-          }
-        } else {
-          voiceToggleBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
-          // Cancel any ongoing speech
-          if (speechSynthesisActive) {
-            window.speechSynthesis.cancel();
-            speechSynthesisActive = false;
-          }
-        }
-      });
-      
-      function speakResponse(text) {
-        if (!voiceEnabled) return;
-        
-        // Cancel any ongoing speech
-        if (speechSynthesisActive) {
-          window.speechSynthesis.cancel();
-        }
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.onend = () => {
-          speechSynthesisActive = false;
-        };
-        
-        speechSynthesisActive = true;
-        window.speechSynthesis.speak(utterance);
-      }
-      
-      // Instructions modal
-      closeInstructionsBtn.addEventListener('click', () => {
-        instructionsModal.classList.add('hidden');
-        
-        // Save to localStorage to prevent showing on reload
-        localStorage.setItem('instructionsShown', 'true');
-      });
-      
-      // Check if we should show instructions
-      if (!localStorage.getItem('instructionsShown')) {
-        instructionsModal.classList.remove('hidden');
-      } else {
-        instructionsModal.classList.add('hidden');
-      }
-      
-      function updateStatus(text, isActive = false) {
-        logDebug(`Status: ${text}`);
-        
-        if (isActive) {
-          statusIndicator.classList.remove('bg-gray-600');
-          statusIndicator.classList.add('bg-green-500');
-        } else {
-          statusIndicator.classList.add('bg-gray-600');
-          statusIndicator.classList.remove('bg-green-500');
-        }
-      }
-      
-      function updateButtonIcon(isActive) {
-        if (isActive) {
-          startButton.innerHTML = '<i class="fas fa-stop"></i>';
-          startButton.classList.remove('bg-white');
-          startButton.classList.remove('text-black');
-          startButton.classList.add('bg-red-500');
-          startButton.classList.add('text-white');
-        } else {
-          startButton.innerHTML = '<i class="fas fa-play"></i>';
-          startButton.classList.add('bg-white');
-          startButton.classList.add('text-black');
-          startButton.classList.remove('bg-red-500');
-          startButton.classList.remove('text-white');
-        }
-      }
-      
-      function showLoading() {
-        loadingOverlay.classList.remove('hidden');
-        loadingOverlay.classList.add('flex');
-      }
-      
-      function hideLoading() {
-        loadingOverlay.classList.add('hidden');
-        loadingOverlay.classList.remove('flex');
-      }
-      
-      function showProcessingIndicator() {
-        processingIndicator.classList.remove('hidden');
-      }
-      
-      function hideProcessingIndicator() {
-        processingIndicator.classList.add('hidden');
-      }
-      
-      function showResponseOverlay(text) {
-        // Clear any existing timeout
-        if (overlayTimeout) {
-          clearTimeout(overlayTimeout);
-        }
-        
-        // Update the overlay text
-        overlayResponseText.textContent = text;
-        responseOverlay.classList.remove('hidden');
-        
-        // Get the selected duration
-        const duration = parseInt(overlayDurationSelect.value, 10);
-        
-        // If duration is not 0 (always visible), set a timeout to hide
-        if (duration > 0) {
-          overlayTimeout = setTimeout(() => {
-            responseOverlay.classList.add('hidden');
-          }, duration);
-        }
-      }
-      
       async function initCamera() {
         try {
-          updateStatus("Requesting camera...");
-          logDebug(`Requesting camera with facing mode: ${currentFacingMode}`);
-          
-          // Try to use the specified camera
-          const constraints = { 
-            video: { 
-              facingMode: { exact: currentFacingMode },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            },
-            audio: false 
-          };
-          
-          try {
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-          } catch (err) {
-            logDebug(`Failed with exact constraint: ${err.message}. Trying with ideal constraint.`);
-            
-            // If exact constraint fails, try with ideal constraint
-            const fallbackConstraints = { 
-              video: { 
-                facingMode: { ideal: currentFacingMode },
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-              },
-              audio: false 
-            };
-            
-            try {
-              stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
-            } catch (fallbackErr) {
-              logDebug(`Failed with ideal constraint: ${fallbackErr.message}. Trying with any camera.`);
-              
-              // If that still fails, try with any camera
-              const basicConstraints = { 
-                video: true,
-                audio: false 
-              };
-              
-              stream = await navigator.mediaDevices.getUserMedia(basicConstraints);
-            }
-          }
-          
-          video.srcObject = stream;
-          
-          // Wait for video to be ready
-          await new Promise(resolve => {
-            video.onloadedmetadata = () => resolve();
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
           });
-          
-          const cameraReadyMsg = "Camera ready! Press the play button to start.";
-          showResponseOverlay(cameraReadyMsg);
-          updateStatus("Camera ready");
-          logDebug("Camera initialized successfully");
-          return true;
+          video.srcObject = stream;
+          responseText.value = "Camera access granted. Ready to start.";
         } catch (err) {
           console.error("Error accessing camera:", err);
-          const errorMsg = `Camera error: ${err.message}. Please check permissions.`;
-          showResponseOverlay(errorMsg);
-          updateStatus("Camera access denied");
-          logDebug(`Camera error: ${err.message}`);
-          return false;
+          responseText.value = `Error accessing camera: ${err.name} - ${err.message}. Please ensure permissions are granted and you are on HTTPS or localhost.`;
+          alert(
+            `Error accessing camera: ${err.name}. Make sure you've granted permission and are on HTTPS or localhost.`
+          );
         }
       }
-      
       function captureImage() {
-        if (!stream) {
-          logDebug("No camera stream available for capture");
+        if (!stream || !video.videoWidth) {
+          console.warn("Video stream not ready for capture.");
           return null;
         }
-        
-        try {
-          const tracks = stream.getVideoTracks();
-          if (!tracks || tracks.length === 0) {
-            logDebug("No video tracks in stream");
-            return null;
-          }
-          
-          if (!video.videoWidth || !video.videoHeight) {
-            logDebug("Video dimensions not available yet");
-            return null;
-          }
-          
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          
-          const context = canvas.getContext("2d", { willReadFrequently: true });
-          if (!context) {
-            logDebug("Could not get canvas context");
-            return null;
-          }
-          
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          
-          if (!imageData) {
-            logDebug("Could not get image data from canvas");
-            return null;
-          }
-          
-          logDebug(`Captured image: ${canvas.width}x${canvas.height}`);
-          return imageData;
-        } catch (err) {
-          logDebug(`Error capturing image: ${err.message}`);
-          return null;
-        }
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+        return new RawImage(frame.data, frame.width, frame.height, 4);
       }
-      
+      async function runLocalVisionInference(imgElement, instruction) {
+        const messages = [
+          {
+            role: "user",
+            content: [{ type: "image" }, { type: "text", text: instruction }],
+          },
+        ];
+        const text = processor.apply_chat_template(messages, {
+          add_generation_prompt: true,
+        });
+        const inputs = await processor(text, [imgElement], {
+          do_image_splitting: false,
+        });
+        const generatedIds = await model.generate({
+          ...inputs,
+          max_new_tokens: 100,
+        });
+        const output = processor.batch_decode(
+          generatedIds.slice(null, [inputs.input_ids.dims.at(-1), null]),
+          { skip_special_tokens: true }
+        );
+        return output[0].trim();
+      }
       async function sendData() {
         if (!isProcessing) return;
-        
-        updateStatus("Analyzing...", true);
-        const instruction = promptInput.value.trim() || "What do you see?";
-        
-        showProcessingIndicator();
-        
+        const instruction = instructionText.value;
+        const rawImg = captureImage();
+        if (!rawImg) {
+          responseText.value = "Capture failed";
+          return;
+        }
         try {
-          logDebug(`Processing prompt: "${instruction}"`);
-          showResponseOverlay("Processing...");
-          
-          // Capture image from camera
-          const imageData = captureImage();
-          
-          if (!imageData) {
-            const errorMsg = "Could not capture image from camera";
-            showResponseOverlay(errorMsg);
-            updateStatus("Capture failed", false);
-            hideProcessingIndicator();
-            logDebug(errorMsg);
-            return;
-          }
-          
-          // In this version, we'll just use mock responses since we're focusing on UI
-          setTimeout(() => {
-            const reply = getMockResponse(instruction);
-            showResponseOverlay(reply);
-            hideProcessingIndicator();
-            
-            // Speak the response if voice is enabled
-            if (voiceEnabled) {
-              speakResponse(reply);
-            }
-            
-            updateStatus("Active", true);
-            logDebug(`Response received: "${reply}"`);
-          }, 1000); // Simulate processing time
-          
+          const reply = await runLocalVisionInference(rawImg, instruction);
+          responseText.value = reply;
         } catch (e) {
           console.error(e);
-          const errorMsg = `Error: ${e.message}`;
-          showResponseOverlay(errorMsg);
-          updateStatus("Error in processing", false);
-          hideProcessingIndicator();
-          logDebug(`Error processing: ${e.message}`);
+          responseText.value = `Error: ${e.message}`;
         }
       }
-      
       function sleep(ms) {
         return new Promise((resolve) => setTimeout(resolve, ms));
       }
-      
       async function processingLoop() {
         const intervalMs = parseInt(intervalSelect.value, 10);
-        
         while (isProcessing) {
           await sendData();
           if (!isProcessing) break;
           await sleep(intervalMs);
         }
       }
-      
-      async function handleStart() {
+      function handleStart() {
         if (!stream) {
-          const cameraInitialized = await initCamera();
-          if (!cameraInitialized) {
-            return;
-          }
+          responseText.value = "Camera not available. Cannot start.";
+          alert("Camera not available. Please grant permission first.");
+          return;
         }
-        
         isProcessing = true;
-        updateButtonIcon(true);
-        promptInput.disabled = false;
+        startButton.textContent = "Stop";
+        startButton.classList.replace("start", "stop");
+        instructionText.disabled = true;
         intervalSelect.disabled = true;
-        const startMsg = "AI vision active...";
-        showResponseOverlay(startMsg);
-        updateStatus("Active", true);
-        logDebug("Processing started");
-        
+        responseText.value = "Processing started...";
         processingLoop();
       }
-      
       function handleStop() {
         isProcessing = false;
-        updateButtonIcon(false);
-        promptInput.disabled = false;
+        startButton.textContent = "Start";
+        startButton.classList.replace("stop", "start");
+        instructionText.disabled = false;
         intervalSelect.disabled = false;
-        updateStatus("Inactive", false);
-        hideProcessingIndicator();
-        logDebug("Processing stopped");
-        
-        // Cancel any ongoing speech
-        if (speechSynthesisActive) {
-          window.speechSynthesis.cancel();
-          speechSynthesisActive = false;
+        if (responseText.value.startsWith("Processing started...")) {
+          responseText.value = "Processing stopped.";
         }
       }
-      
       startButton.addEventListener("click", () => {
         if (isProcessing) {
           handleStop();
@@ -778,36 +353,26 @@
           handleStart();
         }
       });
-      
       window.addEventListener("DOMContentLoaded", async () => {
-        logDebug("App initialized");
-        
-        // Set initial input placeholder
-        promptInput.placeholder = "What do you see?";
-        
-        // Initialize camera on startup
+        // Check for WebGPU support
+        if (!navigator.gpu) {
+          const videoElement = document.getElementById("videoFeed");
+          const warningElement = document.createElement("p");
+          warningElement.textContent =
+            "WebGPU is not available in this browser.";
+          warningElement.style.color = "red";
+          warningElement.style.textAlign = "center";
+          videoElement.parentNode.insertBefore(
+            warningElement,
+            videoElement.nextSibling
+          );
+        }
+        await initModel();
         await initCamera();
       });
-      
-      // Prevent zoom on double tap for iOS
-      let lastTapTime = 0;
-      document.addEventListener('touchend', (e) => {
-        const currentTime = new Date().getTime();
-        const tapLength = currentTime - lastTapTime;
-        if (tapLength < 500 && tapLength > 0) {
-          e.preventDefault();
-        }
-        lastTapTime = currentTime;
-      });
-      
       window.addEventListener("beforeunload", () => {
         if (stream) {
           stream.getTracks().forEach((track) => track.stop());
-        }
-        
-        // Cancel any ongoing speech
-        if (speechSynthesisActive) {
-          window.speechSynthesis.cancel();
         }
       });
     </script>
