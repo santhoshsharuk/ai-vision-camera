@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>AI Vision</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+      /* Custom animations and styles that Tailwind doesn't cover */
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .animate-spin-custom {
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes pulse-skeleton {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 0.8; }
+      }
+      
+      .animate-pulse-skeleton {
+        animation: pulse-skeleton 1.5s ease-in-out infinite;
+      }
+      
+      /* Flame effect animation */
+      @keyframes flicker {
+        0%, 100% { opacity: 0.8; }
+        10% { opacity: 0.7; }
+        20% { opacity: 0.9; }
+        30% { opacity: 0.8; }
+        40% { opacity: 0.9; }
+        60% { opacity: 0.7; }
+        80% { opacity: 0.9; }
+      }
+      
+      .flame-effect {
+        animation: flicker 3s infinite alternate;
+        filter: blur(8px);
+        opacity: 0.8;
+      }
+      
+      /* Smooth slide up animation */
+      @keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+      }
+      
+      .animate-slide-up {
+        animation: slideUp 0.3s ease-out forwards;
+      }
+      
+      /* Fade in animation */
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      .animate-fade-in {
+        animation: fadeIn 0.3s ease-out forwards;
+      }
+      
+      /* Prevent text selection */
+      .no-select {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      
+      /* Override focus styles */
+      textarea:focus, input:focus {
+        outline: none;
+      }
+      
+      /* Custom scrollbar for webkit browsers */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #161616;
+      }
+      
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #444;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body class="bg-black text-gray-100 font-sans overflow-hidden touch-manipulation fixed inset-0">
+    <div class="flex flex-col h-full max-w-lg mx-auto relative" id="appContainer">
+      <!-- App Header -->
+      <header class="bg-black py-3 px-4 flex items-center justify-center z-10 border-b border-gray-800">
+        <h1 class="text-lg font-semibold text-white">AI Vision Camera</h1>
+      </header>
+      
+      <!-- Main Content -->
+      <main class="flex-1 flex flex-col relative overflow-hidden">
+        <!-- Camera View with Flame Effect -->
+        <div class="relative flex-1 bg-black">
+          <!-- Camera Feed -->
+          <video id="videoFeed" class="w-full h-full object-cover"></video>
+          
+          <!-- Flame Effect Overlay -->
+          <div class="absolute inset-0 pointer-events-none overflow-hidden">
+            <!-- Top Flame -->
+            <div class="absolute top-0 left-0 right-0 h-12 flame-effect">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 25" preserveAspectRatio="none" class="w-full h-full">
+                <path d="M0,25 C15,5 35,15 50,0 C65,15 85,5 100,25 Z" fill="black" />
+              </svg>
+            </div>
+            
+            <!-- Bottom Flame -->
+            <div class="absolute bottom-0 left-0 right-0 h-12 flame-effect transform rotate-180">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 25" preserveAspectRatio="none" class="w-full h-full">
+                <path d="M0,25 C15,5 35,15 50,0 C65,15 85,5 100,25 Z" fill="black" />
+              </svg>
+            </div>
+            
+            <!-- Left Flame -->
+            <div class="absolute top-0 left-0 bottom-0 w-8 flame-effect transform rotate-90">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 25" preserveAspectRatio="none" class="w-full h-full">
+                <path d="M0,25 C15,5 35,15 50,0 C65,15 85,5 100,25 Z" fill="black" />
+              </svg>
+            </div>
+            
+            <!-- Right Flame -->
+            <div class="absolute top-0 right-0 bottom-0 w-8 flame-effect transform -rotate-90">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 25" preserveAspectRatio="none" class="w-full h-full">
+                <path d="M0,25 C15,5 35,15 50,0 C65,15 85,5 100,25 Z" fill="black" />
+              </svg>
+            </div>
+          </div>
+          
+          <!-- AI Response Overlay -->
+          <div id="responseOverlay" class="absolute top-0 left-0 right-0 p-4 z-20 pointer-events-none hidden">
+            <div class="bg-black bg-opacity-70 backdrop-blur-sm rounded-xl p-4 border border-gray-700 animate-fade-in">
+              <div class="flex items-start">
+                <div class="flex-shrink-0 mr-3">
+                  <div class="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                    <i class="fas fa-robot text-black text-xs"></i>
+                  </div>
+                </div>
+                <div class="flex-grow">
+                  <p id="overlayResponseText" class="text-white text-sm"></p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Loading Overlay -->
+          <div id="loadingOverlay" class="absolute inset-0 bg-black bg-opacity-70 flex-col hidden items-center justify-center z-10 text-white">
+            <div class="w-10 h-10 border-3 border-t-white border-r-white border-b-white border-l-transparent rounded-full animate-spin-custom mb-4"></div>
+            <div id="loadingMessage" class="text-center px-6">Loading AI model...</div>
+          </div>
+          
+          <!-- Floating Action Button -->
+          <button id="startButton" class="absolute bottom-16 right-4 w-14 h-14 rounded-full bg-white text-black flex items-center justify-center shadow-lg z-20 hover:bg-gray-200">
+            <i class="fas fa-play"></i>
+          </button>
+          
+          <!-- Control Buttons -->
+          <div class="absolute bottom-16 left-4 flex gap-3 z-20">
+            <button id="settingsBtn" class="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center border border-gray-700">
+              <i class="fas fa-cog"></i>
+            </button>
+            <button id="voiceToggleBtn" class="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center border border-gray-700">
+              <i class="fas fa-volume-mute"></i>
+            </button>
+          </div>
+          
+          <!-- AI Thinking/Processing Indicator -->
+          <div id="processingIndicator" class="absolute top-4 right-4 hidden">
+            <div class="flex items-center bg-gray-900 bg-opacity-70 rounded-full px-2 py-1">
+              <div class="w-3 h-3 bg-white rounded-full mr-2 animate-pulse"></div>
+              <span class="text-xs text-white">AI is thinking...</span>
+            </div>
+          </div>
+        </div>
+        <canvas id="canvas" class="hidden"></canvas>
+        
+        <!-- Compact Bottom UI -->
+        <div id="compactUI" class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-30">
+          <!-- Input Bar -->
+          <div class="flex items-center bg-gray-900 border-t border-gray-800 px-3 py-3">
+            <div class="flex-grow relative mr-2">
+              <input id="promptInput" type="text" placeholder="Ask the AI about what it sees..." class="w-full py-2 px-4 bg-gray-800 text-white rounded-full text-sm focus:ring-1 focus:ring-white border-none">
+              <div id="statusIndicator" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full bg-gray-600"></div>
+            </div>
+            <button id="expandUIBtn" class="p-2 text-white bg-gray-800 rounded-full flex items-center justify-center">
+              <i class="fas fa-chevron-up"></i>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Expanded UI Panel (initially hidden) -->
+        <div id="expandedUI" class="fixed inset-0 bg-black bg-opacity-95 z-40 hidden">
+          <div class="flex flex-col h-full">
+            <!-- Expanded Header -->
+            <div class="bg-gray-900 p-4 flex items-center justify-between border-b border-gray-800">
+              <h2 class="text-white font-medium">AI Vision Analysis</h2>
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-gray-400">Voice</span>
+                  <label class="inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="readResponseToggle" class="sr-only peer">
+                    <div class="relative w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white"></div>
+                  </label>
+                </div>
+                <button id="collapseUIBtn" class="text-gray-400 hover:text-white">
+                  <i class="fas fa-times text-lg"></i>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Expanded Content -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+              <!-- Instruction Input -->
+              <div class="mb-4">
+                <label for="instructionText" class="block text-xs text-gray-400 font-medium mb-2">Ask the AI:</label>
+                <textarea id="instructionText" placeholder="What would you like to know about the camera view?" class="w-full border border-gray-700 rounded-xl p-3 text-sm resize-none h-20 bg-gray-800 text-gray-200"></textarea>
+              </div>
+              
+              <!-- Response Area -->
+              <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                  <label class="block text-xs text-gray-400 font-medium">AI Response:</label>
+                  <span id="statusText" class="text-xs text-gray-500">Inactive</span>
+                </div>
+                
+                <!-- Response Card -->
+                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                  <div id="responseContainer" class="space-y-3">
+                    <div id="responseContent" class="text-sm text-gray-200 min-h-24">
+                      AI response will appear here...
+                    </div>
+                    
+                    <!-- Skeleton Loading Effect (Hidden by Default) -->
+                    <div id="skeletonLoader" class="hidden mt-2 space-y-2">
+                      <div class="h-4 bg-gray-700 rounded animate-pulse-skeleton"></div>
+                      <div class="h-4 bg-gray-700 rounded w-3/4 animate-pulse-skeleton"></div>
+                      <div class="h-4 bg-gray-700 rounded w-5/6 animate-pulse-skeleton"></div>
+                      <div class="h-4 bg-gray-700 rounded animate-pulse-skeleton"></div>
+                      <div class="h-4 bg-gray-700 rounded w-4/5 animate-pulse-skeleton"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Settings Section -->
+              <div>
+                <h3 class="text-xs text-gray-400 font-medium mb-2">Settings</h3>
+                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                  <div class="mb-3">
+                    <label for="intervalSelect" class="block text-xs text-gray-400 mb-1">Camera refresh rate:</label>
+                    <select id="intervalSelect" class="w-full p-2 text-sm border border-gray-700 rounded-lg appearance-none bg-gray-900 text-gray-200 pr-8 relative">
+                      <option value="500">0.5s</option>
+                      <option value="1000" selected>1s</option>
+                      <option value="1500">1.5s</option>
+                      <option value="2000">2s</option>
+                      <option value="3000">3s</option>
+                    </select>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label for="overlayDurationSelect" class="block text-xs text-gray-400 mb-1">Response display time:</label>
+                    <select id="overlayDurationSelect" class="w-full p-2 text-sm border border-gray-700 rounded-lg appearance-none bg-gray-900 text-gray-200 pr-8 relative">
+                      <option value="3000">3 seconds</option>
+                      <option value="5000" selected>5 seconds</option>
+                      <option value="10000">10 seconds</option>
+                      <option value="0">Always visible</option>
+                    </select>
+                  </div>
+                  
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-300">AI Model</span>
+                    <span class="text-xs text-gray-400 bg-gray-700 py-1 px-2 rounded">SmolVLM-500M</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    
+    <!-- Instructions Modal -->
+    <div id="instructionsModal" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+      <div class="bg-gray-900 rounded-2xl shadow-xl max-w-md w-full mx-auto overflow-hidden border border-gray-800">
+        <div class="p-6">
+          <h2 class="text-xl font-semibold text-center text-white mb-4">Welcome to AI Vision Camera</h2>
+          
+          <div class="space-y-4 text-sm">
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-camera"></i>
+              </div>
+              <div>
+                <p class="font-medium text-white">Allow camera access</p>
+                <p class="text-gray-400">First, grant permission to use your camera when prompted.</p>
+              </div>
+            </div>
+            
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-play"></i>
+              </div>
+              <div>
+                <p class="font-medium text-white">Start the camera</p>
+                <p class="text-gray-400">Tap the floating button to start the AI vision analysis.</p>
+              </div>
+            </div>
+            
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-comment-alt"></i>
+              </div>
+              <div>
+                <p class="font-medium text-white">Ask questions</p>
+                <p class="text-gray-400">Type your question in the input bar at the bottom or tap the up arrow for more options.</p>
+              </div>
+            </div>
+            
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white">
+                <i class="fas fa-eye"></i>
+              </div>
+              <div>
+                <p class="font-medium text-white">View AI responses</p>
+                <p class="text-gray-400">AI responses will appear directly on your screen as an overlay.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-gray-800 p-4 flex justify-center">
+          <button id="closeInstructionsBtn" class="bg-white text-black px-6 py-2 rounded-lg font-medium hover:bg-gray-200">
+            Get Started
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import {
+        AutoProcessor,
+        AutoModelForVision2Seq,
+        RawImage,
+      } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers/dist/transformers.min.js";
+      
+      // DOM Elements
+      const video = document.getElementById("videoFeed");
+      const canvas = document.getElementById("canvas");
+      const instructionText = document.getElementById("instructionText");
+      const promptInput = document.getElementById("promptInput");
+      const responseContent = document.getElementById("responseContent");
+      const overlayResponseText = document.getElementById("overlayResponseText");
+      const responseOverlay = document.getElementById("responseOverlay");
+      const processingIndicator = document.getElementById("processingIndicator");
+      const intervalSelect = document.getElementById("intervalSelect");
+      const overlayDurationSelect = document.getElementById("overlayDurationSelect");
+      const startButton = document.getElementById("startButton");
+      const loadingOverlay = document.getElementById("loadingOverlay");
+      const loadingMessage = document.getElementById("loadingMessage");
+      const statusIndicator = document.getElementById("statusIndicator");
+      const statusText = document.getElementById("statusText");
+      const expandUIBtn = document.getElementById("expandUIBtn");
+      const collapseUIBtn = document.getElementById("collapseUIBtn");
+      const compactUI = document.getElementById("compactUI");
+      const expandedUI = document.getElementById("expandedUI");
+      const readResponseToggle = document.getElementById("readResponseToggle");
+      const voiceToggleBtn = document.getElementById("voiceToggleBtn");
+      const settingsBtn = document.getElementById("settingsBtn");
+      const instructionsModal = document.getElementById("instructionsModal");
+      const closeInstructionsBtn = document.getElementById("closeInstructionsBtn");
+      const skeletonLoader = document.getElementById("skeletonLoader");
+      
+      // App State
+      let stream;
+      let isProcessing = false;
+      let processor, model;
+      let modelLoaded = false;
+      let speechSynthesisActive = false;
+      let voiceEnabled = false;
+      let overlayTimeout = null;
+      
+      // UI Interaction Handlers
+      expandUIBtn.addEventListener('click', () => {
+        expandedUI.classList.remove('hidden');
+        // Copy the prompt from compact to expanded UI
+        instructionText.value = promptInput.value;
+      });
+      
+      collapseUIBtn.addEventListener('click', () => {
+        expandedUI.classList.add('hidden');
+        // Copy the prompt from expanded to compact UI
+        promptInput.value = instructionText.value;
+      });
+      
+      // Enter key in compact mode triggers send
+      promptInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (promptInput.value.trim() && isProcessing) {
+            instructionText.value = promptInput.value;
+            sendData();
+          }
+        }
+      });
+      
+      // Voice toggle button
+      voiceToggleBtn.addEventListener('click', () => {
+        voiceEnabled = !voiceEnabled;
+        readResponseToggle.checked = voiceEnabled;
+        
+        if (voiceEnabled) {
+          voiceToggleBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+        } else {
+          voiceToggleBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+          // Cancel any ongoing speech
+          if (speechSynthesisActive) {
+            window.speechSynthesis.cancel();
+            speechSynthesisActive = false;
+          }
+        }
+      });
+      
+      // Settings button
+      settingsBtn.addEventListener('click', () => {
+        expandedUI.classList.remove('hidden');
+        // Scroll to settings section
+        setTimeout(() => {
+          document.querySelector('.custom-scrollbar').scrollTop = 1000;
+        }, 100);
+      });
+      
+      // Text-to-speech functionality
+      readResponseToggle.addEventListener('change', () => {
+        voiceEnabled = readResponseToggle.checked;
+        
+        if (voiceEnabled) {
+          voiceToggleBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+          if (responseContent.textContent && 
+              responseContent.textContent !== "AI response will appear here..." && 
+              responseContent.textContent !== "Processing...") {
+            speakResponse(responseContent.textContent);
+          }
+        } else {
+          voiceToggleBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+          // Cancel any ongoing speech
+          if (speechSynthesisActive) {
+            window.speechSynthesis.cancel();
+            speechSynthesisActive = false;
+          }
+        }
+      });
+      
+      function speakResponse(text) {
+        if (!voiceEnabled) return;
+        
+        // Cancel any ongoing speech
+        if (speechSynthesisActive) {
+          window.speechSynthesis.cancel();
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = () => {
+          speechSynthesisActive = false;
+        };
+        
+        speechSynthesisActive = true;
+        window.speechSynthesis.speak(utterance);
+      }
+      
+      // Instructions modal
+      closeInstructionsBtn.addEventListener('click', () => {
+        instructionsModal.classList.add('hidden');
+        
+        // Save to localStorage to prevent showing on reload
+        localStorage.setItem('instructionsShown', 'true');
+      });
+      
+      // Check if we should show instructions
+      if (!localStorage.getItem('instructionsShown')) {
+        instructionsModal.classList.remove('hidden');
+      } else {
+        instructionsModal.classList.add('hidden');
+      }
+      
+      function updateStatus(text, isActive = false) {
+        statusText.textContent = text;
+        
+        if (isActive) {
+          statusIndicator.classList.remove('bg-gray-600');
+          statusIndicator.classList.add('bg-green-500');
+        } else {
+          statusIndicator.classList.add('bg-gray-600');
+          statusIndicator.classList.remove('bg-green-500');
+        }
+      }
+      
+      function updateButtonIcon(isActive) {
+        if (isActive) {
+          startButton.innerHTML = '<i class="fas fa-stop"></i>';
+          startButton.classList.remove('bg-white');
+          startButton.classList.remove('text-black');
+          startButton.classList.add('bg-red-500');
+          startButton.classList.add('text-white');
+        } else {
+          startButton.innerHTML = '<i class="fas fa-play"></i>';
+          startButton.classList.add('bg-white');
+          startButton.classList.add('text-black');
+          startButton.classList.remove('bg-red-500');
+          startButton.classList.remove('text-white');
+        }
+      }
+      
+      function showLoading() {
+        loadingOverlay.classList.remove('hidden');
+        loadingOverlay.classList.add('flex');
+      }
+      
+      function hideLoading() {
+        loadingOverlay.classList.add('hidden');
+        loadingOverlay.classList.remove('flex');
+      }
+      
+      function showSkeletonLoader() {
+        skeletonLoader.classList.remove('hidden');
+      }
+      
+      function hideSkeletonLoader() {
+        skeletonLoader.classList.add('hidden');
+      }
+      
+      function showProcessingIndicator() {
+        processingIndicator.classList.remove('hidden');
+      }
+      
+      function hideProcessingIndicator() {
+        processingIndicator.classList.add('hidden');
+      }
+      
+      function showResponseOverlay(text) {
+        // Clear any existing timeout
+        if (overlayTimeout) {
+          clearTimeout(overlayTimeout);
+        }
+        
+        // Update the overlay text
+        overlayResponseText.textContent = text;
+        responseOverlay.classList.remove('hidden');
+        
+        // Get the selected duration
+        const duration = parseInt(overlayDurationSelect.value, 10);
+        
+        // If duration is not 0 (always visible), set a timeout to hide
+        if (duration > 0) {
+          overlayTimeout = setTimeout(() => {
+            responseOverlay.classList.add('hidden');
+          }, duration);
+        }
+      }
+      
+      async function initModel() {
+        if (modelLoaded) return;
+        
+        try {
+          const modelId = "HuggingFaceTB/SmolVLM-500M-Instruct";
+          showLoading();
+          loadingMessage.textContent = "Loading AI model... (1/3)";
+          updateStatus("Loading AI...");
+          
+          processor = await AutoProcessor.from_pretrained(modelId);
+          loadingMessage.textContent = "Loading AI model... (2/3)";
+          
+          model = await AutoModelForVision2Seq.from_pretrained(modelId, {
+            dtype: {
+              embed_tokens: "fp16",
+              vision_encoder: "q4",
+              decoder_model_merged: "q4",
+            },
+            device: "webgpu",
+          });
+          
+          loadingMessage.textContent = "AI model ready!";
+          modelLoaded = true;
+          updateStatus("AI model loaded");
+        } catch (err) {
+          console.error("Error loading model:", err);
+          responseContent.textContent = `Error loading AI model: ${err.message}. Please try reloading the page.`;
+          showResponseOverlay(`Error: ${err.message}`);
+          loadingMessage.textContent = "Error loading AI model";
+          updateStatus("Error: AI failed to load");
+        } finally {
+          hideLoading();
+        }
+      }
+      
+      async function initCamera() {
+        try {
+          updateStatus("Requesting camera...");
+          
+          // Try to use the back camera on mobile first
+          const constraints = { 
+            video: { 
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            },
+            audio: false 
+          };
+          
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          video.srcObject = stream;
+          
+          // Wait for video to be ready
+          await new Promise(resolve => {
+            video.onloadedmetadata = () => resolve();
+          });
+          
+          const cameraReadyMsg = "Camera ready! Press the play button to start.";
+          responseContent.textContent = cameraReadyMsg;
+          showResponseOverlay(cameraReadyMsg);
+          updateStatus("Camera ready");
+          return true;
+        } catch (err) {
+          console.error("Error accessing camera:", err);
+          const errorMsg = `Camera error: ${err.message}. Please check permissions.`;
+          responseContent.textContent = errorMsg;
+          showResponseOverlay(errorMsg);
+          updateStatus("Camera access denied");
+          
+          // Show expanded UI to display the error
+          expandedUI.classList.remove('hidden');
+          return false;
+        }
+      }
+      
+      function captureImage() {
+        if (!stream || !video.videoWidth) {
+          console.warn("Video stream not ready for capture.");
+          return null;
+        }
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+        return new RawImage(frame.data, frame.width, frame.height, 4);
+      }
+      
+      async function runLocalVisionInference(imgElement, instruction) {
+        const messages = [
+          {
+            role: "user",
+            content: [{ type: "image" }, { type: "text", text: instruction }],
+          },
+        ];
+        
+        const text = processor.apply_chat_template(messages, {
+          add_generation_prompt: true,
+        });
+        
+        const inputs = await processor(text, [imgElement], {
+          do_image_splitting: false,
+        });
+        
+        const generatedIds = await model.generate({
+          ...inputs,
+          max_new_tokens: 100,
+        });
+        
+        const output = processor.batch_decode(
+          generatedIds.slice(null, [inputs.input_ids.dims.at(-1), null]),
+          { skip_special_tokens: true }
+        );
+        
+        return output[0].trim();
+      }
+      
+      async function sendData() {
+        if (!isProcessing) return;
+        
+        updateStatus("Analyzing...", true);
+        // Get the prompt from the appropriate input based on which UI is visible
+        const instruction = expandedUI.classList.contains('hidden') ? 
+                            promptInput.value : 
+                            instructionText.value;
+        
+        const rawImg = captureImage();
+        
+        if (!rawImg) {
+          const errorMsg = "Could not capture image";
+          responseContent.textContent = errorMsg;
+          showResponseOverlay(errorMsg);
+          updateStatus("Capture failed", false);
+          hideSkeletonLoader();
+          hideProcessingIndicator();
+          return;
+        }
+        
+        try {
+          responseContent.textContent = "Processing...";
+          showSkeletonLoader();
+          showProcessingIndicator();
+          
+          const reply = await runLocalVisionInference(rawImg, instruction);
+          responseContent.textContent = reply;
+          hideSkeletonLoader();
+          hideProcessingIndicator();
+          
+          // Display the response in the overlay
+          showResponseOverlay(reply);
+          
+          // Speak the response if voice is enabled
+          if (voiceEnabled) {
+            speakResponse(reply);
+          }
+          
+          updateStatus("Active", true);
+        } catch (e) {
+          console.error(e);
+          const errorMsg = `Error: ${e.message}`;
+          responseContent.textContent = errorMsg;
+          showResponseOverlay(errorMsg);
+          updateStatus("Error in processing", false);
+          hideSkeletonLoader();
+          hideProcessingIndicator();
+          
+          // Show the expanded UI if there's an error
+          expandedUI.classList.remove('hidden');
+        }
+      }
+      
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+      
+      async function processingLoop() {
+        const intervalMs = parseInt(intervalSelect.value, 10);
+        
+        while (isProcessing) {
+          await sendData();
+          if (!isProcessing) break;
+          await sleep(intervalMs);
+        }
+      }
+      
+      async function handleStart() {
+        if (!modelLoaded) {
+          await initModel();
+        }
+        
+        if (!stream) {
+          const cameraInitialized = await initCamera();
+          if (!cameraInitialized) {
+            return;
+          }
+        }
+        
+        isProcessing = true;
+        updateButtonIcon(true);
+        promptInput.disabled = false;
+        instructionText.disabled = false;
+        intervalSelect.disabled = true;
+        const startMsg = "AI vision active...";
+        responseContent.textContent = startMsg;
+        showResponseOverlay(startMsg);
+        updateStatus("Active", true);
+        
+        processingLoop();
+      }
+      
+      function handleStop() {
+        isProcessing = false;
+        updateButtonIcon(false);
+        promptInput.disabled = false;
+        instructionText.disabled = false;
+        intervalSelect.disabled = false;
+        updateStatus("Inactive", false);
+        hideSkeletonLoader();
+        hideProcessingIndicator();
+        
+        // Cancel any ongoing speech
+        if (speechSynthesisActive) {
+          window.speechSynthesis.cancel();
+          speechSynthesisActive = false;
+        }
+      }
+      
+      startButton.addEventListener("click", () => {
+        if (isProcessing) {
+          handleStop();
+        } else {
+          handleStart();
+        }
+      });
+      
+      window.addEventListener("DOMContentLoaded", async () => {
+        // Check for WebGPU support
+        if (!navigator.gpu) {
+          const errorMsg = "Your browser doesn't support WebGPU. Please try Chrome or Edge.";
+          responseContent.textContent = errorMsg;
+          showResponseOverlay(errorMsg);
+          startButton.disabled = true;
+          startButton.classList.remove('bg-white');
+          startButton.classList.add('bg-gray-700');
+          updateStatus("WebGPU not supported", false);
+          expandedUI.classList.remove('hidden');
+          return;
+        }
+        
+        // Set initial input placeholder
+        promptInput.placeholder = "What do you see?";
+        instructionText.value = "What do you see?";
+        
+        // Initialize model on startup
+        await initModel();
+      });
+      
+      // Prevent zoom on double tap for iOS
+      let lastTapTime = 0;
+      document.addEventListener('touchend', (e) => {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTapTime;
+        if (tapLength < 500 && tapLength > 0) {
+          e.preventDefault();
+        }
+        lastTapTime = currentTime;
+      });
+      
+      window.addEventListener("beforeunload", () => {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+        
+        // Cancel any ongoing speech
+        if (speechSynthesisActive) {
+          window.speechSynthesis.cancel();
+        }
+      });
+      
+      // Tap on response overlay to keep it visible longer
+      responseOverlay.addEventListener('click', (e) => {
+        // Even though the overlay is pointer-events-none, we'll keep this for future use
+        if (overlayTimeout) {
+          clearTimeout(overlayTimeout);
+          
+          // Reset the timer
+          const duration = parseInt(overlayDurationSelect.value, 10);
+          if (duration > 0) {
+            overlayTimeout = setTimeout(() => {
+              responseOverlay.classList.add('hidden');
+            }, duration);
+          }
+        }
+        e.stopPropagation();
+      });
+    </script>
+  </body>
+</html>
