@@ -1,181 +1,508 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Camera Interaction App</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-      padding: 20px;
-      background-color: #f0f0f0;
-    }
-    video {
-      width: 100%;
-      max-width: 480px;
-      border-radius: 8px;
-      border: 2px solid #333;
-      background-color: #000;
-    }
-    .io-areas {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      width: 100%;
-      max-width: 480px;
-    }
-    .io-areas label {
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
-    .io-areas textarea {
-      width: 100%;
-      height: 60px;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-      resize: vertical;
-    }
-    button {
-      padding: 12px;
-      font-size: 16px;
-      border-radius: 4px;
-      border: none;
-      color: white;
-      cursor: pointer;
-      margin: 0 5px;
-    }
-    .start { background-color: #28a745; }
-    .stop { background-color: #dc3545; }
-    .switch { background-color: #007bff; }
-  </style>
-</head>
-<body>
-  <h1>Camera Interaction App</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Camera Interaction App</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      
+      body {
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        background-color: #f0f0f0;
+        min-height: 100vh;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+        text-align: center;
+        margin-bottom: 8px;
+      }
+      
+      .controls,
+      .io-areas {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background-color: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 600px;
+      }
+      
+      .io-areas {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        resize: vertical;
+        min-height: 50px;
+      }
+      
+      #videoContainer {
+        position: relative;
+        width: 100%;
+        max-width: 480px;
+        border: 2px solid #333;
+        background-color: #000;
+        border-radius: 8px;
+        overflow: hidden;
+        aspect-ratio: 4/3;
+      }
+      
+      #videoFeed {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 6px;
+        object-fit: cover;
+      }
+      
+      #loadingOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 10;
+        border-radius: 6px;
+        color: #ffffff;
+        font-size: 1.5em;
+        font-weight: bold;
+      }
+      
+      button {
+        padding: 12px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        min-width: 100px;
+      }
+      
+      #startButton.start {
+        background-color: #28a745; /* Green */
+      }
+      
+      #startButton.stop {
+        background-color: #dc3545; /* Red */
+      }
+      
+      .switch-camera {
+        background-color: #007bff; /* Blue */
+      }
+      
+      label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+      }
+      
+      select, input {
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        width: 100%;
+      }
+      
+      .api-key-container {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+      
+      .hidden {
+        display: none;
+      }
+      
+      .error-message {
+        color: #dc3545;
+        font-size: 14px;
+        margin-top: 5px;
+      }
+      
+      .success-message {
+        color: #28a745;
+        font-size: 14px;
+        margin-top: 5px;
+      }
+      
+      /* Mobile-specific styling */
+      @media (max-width: 600px) {
+        body {
+          padding: 12px;
+          gap: 12px;
+        }
+        
+        h1 {
+          font-size: 1.5rem;
+        }
+        
+        .controls {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        
+        .interval-wrapper {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+        
+        select, button, input {
+          width: 100%;
+          padding: 12px;
+          font-size: 16px; /* Larger touch targets */
+        }
+        
+        #videoContainer {
+          border-width: 1px;
+        }
+        
+        textarea {
+          font-size: 16px; /* Better readability on mobile */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Camera Interaction App</h1>
 
-  <video id="videoFeed" autoplay playsinline muted></video>
-
-  <div class="io-areas">
-    <div>
-      <label for="instructionText">Instruction:</label>
-      <textarea id="instructionText">What do you see?</textarea>
+    <div id="videoContainer">
+      <video id="videoFeed" autoplay playsinline></video>
+      <div id="loadingOverlay">Processing...</div>
     </div>
-    <div>
-      <label for="responseText">Response:</label>
-      <textarea id="responseText" readonly placeholder="Server response will appear here..."></textarea>
+    <canvas id="canvas" class="hidden"></canvas>
+    <!-- For capturing frames -->
+
+    <div class="io-areas">
+      <div class="api-key-container">
+        <label for="apiKeyInput">Hugging Face API Key:</label>
+        <input type="password" id="apiKeyInput" placeholder="Enter your Hugging Face API key" />
+        <div class="error-message" id="apiKeyError"></div>
+      </div>
+      <div>
+        <label for="modelSelect">Select Model:</label>
+        <select id="modelSelect">
+          <option value="HuggingFaceTB/SmolVLM-500M-Instruct">SmolVLM-500M-Instruct</option>
+          <option value="HuggingFaceTB/SmolVLM-1.7B-Instruct">SmolVLM-1.7B-Instruct</option>
+          <option value="Salesforce/blip2-opt-2.7b">BLIP2-OPT-2.7B</option>
+          <option value="Salesforce/blip-image-captioning-large">BLIP-Large</option>
+        </select>
+      </div>
+      <div>
+        <label for="instructionText">Instruction:</label>
+        <textarea
+          id="instructionText"
+          name="Instruction"
+        >What do you see?</textarea>
+      </div>
+      <div>
+        <label for="responseText">Response:</label>
+        <textarea
+          id="responseText"
+          name="Response"
+          readonly
+          placeholder="Response will appear here..."
+        ></textarea>
+      </div>
     </div>
-  </div>
 
-  <div>
-    <button id="startButton" class="start">Start</button>
-    <button id="switchCamera" class="switch">Switch Camera</button>
-  </div>
+    <div class="controls">
+      <div class="interval-wrapper">
+        <label for="intervalSelect">Interval between requests:</label>
+        <select id="intervalSelect" name="Interval between 2 requests">
+          <option value="0" selected>0ms</option>
+          <option value="100">100ms</option>
+          <option value="250">250ms</option>
+          <option value="500">500ms</option>
+          <option value="1000">1s</option>
+          <option value="2000">2s</option>
+        </select>
+      </div>
+      <button id="startButton" class="start">Start</button>
+      <button id="switchCameraBtn" class="switch-camera">Switch Camera</button>
+    </div>
 
-  <script type="module">
-    import { AutoProcessor, AutoModelForVision2Seq, RawImage } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers/dist/transformers.min.js";
-
-    const video = document.getElementById('videoFeed');
-    const instructionText = document.getElementById('instructionText');
-    const responseText = document.getElementById('responseText');
-    const startButton = document.getElementById('startButton');
-    const switchCameraBtn = document.getElementById('switchCamera');
-
-    let stream;
-    let facingMode = 'environment';
-    let isProcessing = false;
-    let processor, model;
-    let deviceType;
-
-    async function initCamera() {
-      if (stream) stream.getTracks().forEach(track => track.stop());
-      try {
-        const constraints = { video: { facingMode }, audio: false };
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
-        responseText.value = `Camera ready (${facingMode}).`;
-      } catch (err) {
-        responseText.value = `Camera error: ${err.message}`;
+    <script>
+      const video = document.getElementById("videoFeed");
+      const canvas = document.getElementById("canvas");
+      const instructionText = document.getElementById("instructionText");
+      const responseText = document.getElementById("responseText");
+      const intervalSelect = document.getElementById("intervalSelect");
+      const startButton = document.getElementById("startButton");
+      const switchCameraBtn = document.getElementById("switchCameraBtn");
+      const loadingOverlay = document.getElementById("loadingOverlay");
+      const apiKeyInput = document.getElementById("apiKeyInput");
+      const apiKeyError = document.getElementById("apiKeyError");
+      const modelSelect = document.getElementById("modelSelect");
+      
+      let stream = null;
+      let isProcessing = false;
+      let facingMode = 'environment'; // Start with back camera
+      
+      // Try to load API key from localStorage
+      window.addEventListener('DOMContentLoaded', () => {
+        const savedApiKey = localStorage.getItem('hf_api_key');
+        if (savedApiKey) {
+          apiKeyInput.value = savedApiKey;
+        }
+        
+        startCamera();
+      });
+      
+      // Save API key to localStorage when entered
+      apiKeyInput.addEventListener('change', () => {
+        if (apiKeyInput.value.trim() !== '') {
+          localStorage.setItem('hf_api_key', apiKeyInput.value.trim());
+          apiKeyError.textContent = '';
+        }
+      });
+      
+      async function startCamera() {
+        // Stop any existing stream
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+        
+        const constraints = {
+          audio: false,
+          video: { facingMode }
+        };
+        
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          video.srcObject = stream;
+          responseText.value = `Camera ready (${facingMode === 'environment' ? 'back' : 'front'} camera)`;
+        } catch (err) {
+          console.error("Error accessing camera:", err);
+          responseText.value = `Error accessing camera: ${err.message}`;
+          alert(`Could not access camera: ${err.message}. Please check permissions.`);
+        }
       }
-    }
-
-    async function initModel() {
-      responseText.value = "Initializing model...";
-      const modelId = "HuggingFaceTB/SmolVLM-500M-Instruct";
-      deviceType = navigator.gpu ? 'webgpu' : 'cpu';
-
-      // Load processor
-      try {
-        processor = await AutoProcessor.from_pretrained(modelId);
-      } catch (err) {
-        responseText.value = "Processor load error: " + err.message;
-        return;
+      
+      function stopCamera() {
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          stream = null;
+          video.srcObject = null;
+          responseText.value = "Camera stopped";
+        }
       }
-
-      // Load model with fallback
-      const loadOptions = { device: deviceType };
-      if (deviceType === 'webgpu') {
-        loadOptions.dtype = { embed_tokens: 'fp16', vision_encoder: 'q4', decoder_model_merged: 'q4' };
+      
+      function switchCamera() {
+        facingMode = facingMode === 'environment' ? 'user' : 'environment';
+        startCamera();
       }
-
-      try {
-        model = await AutoModelForVision2Seq.from_pretrained(modelId, loadOptions);
-        responseText.value = `Model loaded on ${deviceType}.`;
-      } catch (err) {
-        responseText.value = `Model load error (${deviceType}): ${err.message}`;
-        return;
+      
+      function captureImage() {
+        if (!stream || !video.videoWidth) {
+          console.warn("Video stream not ready for capture.");
+          return null;
+        }
+        
+        // Set canvas dimensions to match video feed
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw current video frame to canvas
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get base64 encoded image data
+        return canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
       }
-
-      // Start camera after model ready
-      initCamera();
-    }
-
-    function captureImage() {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      return new RawImage(frame.data, frame.width, frame.height, 4);
-    }
-
-    async function runInference() {
-      if (!isProcessing) return;
-      const img = captureImage();
-      const instruction = instructionText.value;
-      responseText.value = 'Processing...';
-      try {
-        const messages = [{ role: 'user', content: [{ type: 'image' }, { type: 'text', text: instruction }] }];
-        const prompt = processor.apply_chat_template(messages, { add_generation_prompt: true });
-        const inputs = await processor(prompt, [img], { do_image_splitting: false });
-        const gen = await model.generate({ ...inputs, max_new_tokens: 100 });
-        const out = processor.batch_decode(gen.slice(null, [inputs.input_ids.dims.at(-1), null]), { skip_special_tokens: true });
-        responseText.value = out[0].trim();
-      } catch (err) {
-        responseText.value = 'Inference error: ' + err.message;
+      
+      async function sendToHuggingFaceAPI(imageBase64, prompt) {
+        const apiKey = apiKeyInput.value.trim();
+        
+        if (!apiKey) {
+          apiKeyError.textContent = "Please enter your Hugging Face API key";
+          throw new Error("API key is required");
+        }
+        
+        const modelId = modelSelect.value;
+        const apiUrl = `https://api-inference.huggingface.co/models/${modelId}`;
+        
+        try {
+          // Format payload based on model type
+          let payload;
+          
+          if (modelId.includes('SmolVLM')) {
+            // For SmolVLM models
+            payload = {
+              inputs: {
+                image: imageBase64,
+                text: prompt
+              }
+            };
+          } else if (modelId.includes('blip')) {
+            // For BLIP models
+            payload = {
+              inputs: {
+                image: imageBase64,
+                text: prompt || "What's in this image?"
+              }
+            };
+          } else {
+            // Generic format for other vision-language models
+            payload = {
+              inputs: {
+                image: imageBase64,
+                prompt: prompt
+              }
+            };
+          }
+          
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`API Error (${response.status}): ${errorData.error || response.statusText}`);
+          }
+          
+          const result = await response.json();
+          
+          // Different models return results in different formats
+          if (typeof result === 'string') {
+            return result;
+          } else if (Array.isArray(result) && result.length > 0) {
+            if (typeof result[0] === 'string') {
+              return result[0];
+            } else if (result[0].generated_text) {
+              return result[0].generated_text;
+            }
+          } else if (result.generated_text) {
+            return result.generated_text;
+          }
+          
+          return JSON.stringify(result);
+        } catch (error) {
+          console.error("API request failed:", error);
+          throw error;
+        }
       }
-      if (isProcessing) requestAnimationFrame(runInference);
-    }
-
-    startButton.onclick = () => {
-      isProcessing = !isProcessing;
-      startButton.textContent = isProcessing ? 'Stop' : 'Start';
-      startButton.classList.toggle('start');
-      startButton.classList.toggle('stop');
-      if (isProcessing) runInference();
-    };
-
-    switchCameraBtn.onclick = () => {
-      facingMode = facingMode === 'environment' ? 'user' : 'environment';
-      initCamera();
-    };
-
-    window.addEventListener('load', initModel);
-  </script>
-</body>
+      
+      async function sendData() {
+        if (!isProcessing) return;
+        
+        const instruction = instructionText.value;
+        const imageBase64 = captureImage();
+        
+        if (!imageBase64) {
+          responseText.value = "Camera capture failed";
+          return;
+        }
+        
+        try {
+          loadingOverlay.style.display = "flex";
+          responseText.value = "Processing image...";
+          
+          const reply = await sendToHuggingFaceAPI(imageBase64, instruction);
+          responseText.value = reply;
+        } catch (e) {
+          console.error(e);
+          responseText.value = `Error: ${e.message}`;
+        } finally {
+          loadingOverlay.style.display = "none";
+        }
+      }
+      
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+      
+      async function processingLoop() {
+        const intervalMs = parseInt(intervalSelect.value, 10);
+        while (isProcessing) {
+          await sendData();
+          if (!isProcessing) break;
+          await sleep(intervalMs);
+        }
+      }
+      
+      function handleStart() {
+        if (!stream) {
+          responseText.value = "Camera not available. Starting camera...";
+          startCamera();
+          setTimeout(() => {
+            if (stream) handleStart();
+          }, 1000);
+          return;
+        }
+        
+        // Check if API key is provided
+        if (!apiKeyInput.value.trim()) {
+          apiKeyError.textContent = "Please enter your Hugging Face API key";
+          return;
+        }
+        
+        isProcessing = true;
+        startButton.textContent = "Stop";
+        startButton.classList.replace("start", "stop");
+        instructionText.disabled = true;
+        intervalSelect.disabled = true;
+        apiKeyInput.disabled = true;
+        modelSelect.disabled = true;
+        responseText.value = "Processing started...";
+        processingLoop();
+      }
+      
+      function handleStop() {
+        isProcessing = false;
+        startButton.textContent = "Start";
+        startButton.classList.replace("stop", "start");
+        instructionText.disabled = false;
+        intervalSelect.disabled = false;
+        apiKeyInput.disabled = false;
+        modelSelect.disabled = false;
+        responseText.value = "Processing stopped";
+      }
+      
+      startButton.addEventListener("click", () => {
+        if (isProcessing) {
+          handleStop();
+        } else {
+          handleStart();
+        }
+      });
+      
+      switchCameraBtn.addEventListener("click", switchCamera);
+      
+      window.addEventListener("beforeunload", () => {
+        stopCamera();
+      });
+    </script>
+  </body>
 </html>
